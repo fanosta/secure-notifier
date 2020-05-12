@@ -22,6 +22,10 @@ class MainActivity : Activity() {
     startActivityForResult(intent, 0)
   }
 
+  fun openNetworkTestActivity(view: View?) {
+    startActivity(Intent(this, NetworkTestActivity::class.java))
+  }
+
   override fun onActivityResult(
     requestCode: Int,
     resultCode: Int,

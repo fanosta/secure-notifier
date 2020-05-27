@@ -26,6 +26,10 @@ class MainActivity : Activity() {
     startActivity(Intent(this, NetworkTestActivity::class.java))
   }
 
+  fun openMessengerActivity(view: View?) {
+    startActivity(Intent(this, MessengerActivity::class.java))
+  }
+
   override fun onActivityResult(
     requestCode: Int,
     resultCode: Int,

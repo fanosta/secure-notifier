@@ -28,17 +28,8 @@ class NetworkTestActivity : Activity() {
     }
 
     fun requestAndShowNewFact(view: View?) {
-        var randomFactsEndpoint = "https://uselessfacts.jsph.pl/random.json?language=en";
-        val connection:HttpURLConnection = URL(randomFactsEndpoint).openConnection() as HttpURLConnection
 
-        var responseFact:String = "Sometimes there is no internet ..."
-
-        try {
-            responseFact = JSONObject(connection.inputStream.bufferedReader().readText()).getString("text").toString()
-        }
-        catch (e:Exception) {
-            responseFact += "\nor just: " + e.message;
-        }
+        val responseFact = requestRandomFact();
         println(responseFact);
 
         findViewById<TextView>(R.id.serverMessage).text = responseFact

@@ -1,8 +1,10 @@
 package com.acn.notifier
 
 import org.json.JSONObject
+import java.io.BufferedReader
 import java.io.DataInputStream
 import java.io.DataOutputStream
+import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
 import java.nio.charset.StandardCharsets
@@ -44,4 +46,27 @@ fun requestServerMessages():Collection<MessageElement> {
     }
 
     return messageElements;
+}
+
+
+fun pushMessageToServer(messageElement: MessageElement) {
+    val message = "{\"Message\": \"${messageElement.message}\", \"From\": \"${messageElement.from}\", \"Time\": \"${messageElement.footer}\"}"; //Use Gson().toJson ...
+    println(message);
+
+    val url = URL(NETWORK_ENDPOINT)
+    val connection = url.openConnection() as HttpURLConnection
+    connection.requestMethod = "POST"
+    connection.doOutput = true
+
+    val postData: ByteArray = message.toByteArray(StandardCharsets.UTF_8)
+
+    connection.setRequestProperty("charset", "utf-8")
+    connection.setRequestProperty("Content-length", postData.size.toString())
+    connection.setRequestProperty("Content-Type", "application/json")
+
+    val outputStream = DataOutputStream(connection.outputStream)
+    outputStream.write(postData)
+    outputStream.flush()
+
+    println(connection.responseCode);
 }

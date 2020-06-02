@@ -50,8 +50,9 @@ class MessengerActivity : AppCompatActivity() {
 
         messageView.text = "";
 
+        pushMessageToServer(MessageElement("Sebastian", message, LocalDateTime.now().toString()))
+
         addGUIMessageElement("Sebastian", message, LocalDateTime.now().toString());
 
-        println(message);
     }
 }

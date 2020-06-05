@@ -1,0 +1,6 @@
+pkg
+*.db
+server
+log.txt
+
+client

@@ -22,6 +22,12 @@ class MainActivity : Activity() {
     startActivityForResult(intent, 0)
   }
 
+  fun initKeyManager(view: View?) {
+    val km = KeyManager(this)
+    km.storeData("SECRET")
+    textView!!.text = km.loadData()
+  }
+
   fun openNetworkTestActivity(view: View?) {
     startActivity(Intent(this, NetworkTestActivity::class.java))
   }

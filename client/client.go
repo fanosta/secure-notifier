@@ -34,20 +34,20 @@ var new_client = flag.Bool("new-client", false, "pair a new client")
 
 var peers []Peer
 
-func authorize(conn *websocket.Conn, privkey ed25519.PrivateKey) error {
+func authorize(conn *websocket.Conn, privkey ed25519.PrivateKey) (*HandshakeFinished, error) {
 	transcriptHash := sha3.New256()
 	var serverHello ServerHello
 
 	err := ReadJson(conn, &transcriptHash, &serverHello)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	var clientHello ClientHello
 	var random [32]byte
 	_, err = rand.Read(random[:])
 	if err != nil {
-		return err
+		return nil, err
 	}
 	clientHello.ClientRandom = base64.StdEncoding.EncodeToString(random[:])
 
@@ -55,7 +55,7 @@ func authorize(conn *websocket.Conn, privkey ed25519.PrivateKey) error {
 
 	err = WriteJson(conn, &transcriptHash, clientHello)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	signature := SignWithContext(privkey, []byte("identity assertion"), transcriptHash.Sum(nil))
@@ -65,19 +65,19 @@ func authorize(conn *websocket.Conn, privkey ed25519.PrivateKey) error {
 
 	err = WriteJson(conn, &transcriptHash, signatureJson)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	var handshakeFin HandshakeFinished
 	err = ReadJson(conn, &transcriptHash, &handshakeFin)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if !handshakeFin.Success {
-		return errors.New("server indicated failure")
+		return nil, errors.New("server indicated failure")
 	}
 
-	return nil
+	return &handshakeFin, nil
 }
 
 
@@ -92,7 +92,7 @@ func topUpTokens(tokens *[]PrivateSenderToken, privkey ed25519.PrivateKey, conn 
 			return err
 		}
 
-		token_copy := make([]PrivateSenderToken, mintokens)
+		token_copy := make([]PrivateSenderToken, len(*tokens))
 		copy(token_copy, *tokens)
 
 		token_copy = append(token_copy, newtokens...)
@@ -134,6 +134,7 @@ func pair(pubkey ed25519.PublicKey, init_channel chan []byte, new_peer_chan chan
 	output, err := cmd.Output()
 
 	if err != nil {
+		fmt.Println("calling qrencode failed; you probably need to install it")
 		return err
 	}
 
@@ -249,9 +250,10 @@ func main() {
 	if os.IsNotExist(err) {
 		tokens = []PrivateSenderToken{}
 	} else if err != nil {
-		log.Fatal("loadKey failed: ", err)
+		log.Fatal("loadTokens failed: ", err)
 		os.Exit (1)
 	}
+
 	fmt.Printf("public key: %s\n", base64.StdEncoding.EncodeToString(privatekey.Public().(ed25519.PublicKey)))
 
 	var scheme string
@@ -270,12 +272,15 @@ func main() {
 	}
 	defer c.Close()
 
-	err = authorize(c, privatekey)
+	handshakeFin, err := authorize(c, privatekey)
 	if err != nil {
 		log.Fatal("authorize failed: ", err)
+		return
 	}
 
-	err = c.WriteJSON(tokens)
+	if handshakeFin.SendAllTokens {
+		c.WriteJSON(tokens)
+	}
 
 	init_chan := make(chan []byte)
 	new_peer_chan := make(chan Peer)

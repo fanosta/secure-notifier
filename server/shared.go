@@ -28,6 +28,7 @@ type Signature struct {
 
 type HandshakeFinished struct {
 	Success bool `json:"success"`
+	SendAllTokens bool `json:"send_all_tokens"`
 }
 
 type Error struct {

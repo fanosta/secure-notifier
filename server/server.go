@@ -81,8 +81,20 @@ func authorize(conn *websocket.Conn) (ed25519.PublicKey, error) {
 		return nil, errors.New("signature verification failed")
 	}
 
+	var pubkeyarr [32]byte
+	copy(pubkeyarr[:], pubkey[:])
+
+	// ensure map entry for sendertokens exists
+	tokensMut.Lock()
+	_, client_seen := senderTokens[pubkeyarr]
+	if !client_seen {
+		senderTokens[pubkeyarr] = make([]SenderToken, 0)
+	}
+	tokensMut.Unlock()
+
 	var handshakeFin HandshakeFinished
 	handshakeFin.Success = true
+	handshakeFin.SendAllTokens = !client_seen
 	err = WriteJson(conn, &transcriptHash, handshakeFin)
 	if err != nil {
 		return nil, err
@@ -125,14 +137,6 @@ func readPump(conn *websocket.Conn, pubkey ed25519.PublicKey) {
 	defer conn.Close()
 
 	pubkeyarr := pubkeyAsBytes(pubkey)
-
-	// ensure map entry for sendertokens exists
-	tokensMut.Lock()
-	_, ok := senderTokens[pubkeyarr]
-	if !ok {
-		senderTokens[pubkeyarr] = make([]SenderToken, 0)
-	}
-	tokensMut.Unlock()
 
 	for {
 		var newTokens []SenderToken
@@ -227,7 +231,6 @@ func sendMessage(c *gin.Context) {
 	if err != nil {
 
 		c.JSON(422, Error{err.Error()})
-		//c.JSON(422, strToMsg("invalid json"))
 		return
 	}
 
@@ -261,8 +264,6 @@ func getToken(c *gin.Context) {
 	defer tokensMut.Unlock()
 
 	tokens, ok := senderTokens[pubkeyarr]
-
-	fmt.Printf("ok: %b, tokens: %s\n", ok, tokens)
 
 	if ok && len(tokens) > 1 {
 		token = tokens[0]

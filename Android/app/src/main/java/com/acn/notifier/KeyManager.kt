@@ -4,10 +4,10 @@ import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
 import android.util.Log
-import org.spongycastle.asn1.x9.X9ECParameters
-import org.spongycastle.crypto.ec.CustomNamedCurves
-import org.spongycastle.jce.provider.BouncyCastleProvider
-import org.spongycastle.jce.spec.ECParameterSpec
+import org.bouncycastle.asn1.x9.X9ECParameters
+import org.bouncycastle.crypto.ec.CustomNamedCurves
+import org.bouncycastle.jce.provider.BouncyCastleProvider
+import org.bouncycastle.jce.spec.ECParameterSpec
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream

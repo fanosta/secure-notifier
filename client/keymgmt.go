@@ -88,7 +88,7 @@ func generateTokens(numtokens int, privkey ed25519.PrivateKey) ([]PrivateSenderT
 			return nil, err
 		}
 
-		hash := HashTuple([]byte("sender tokens[i]"), tokens[i].Id, tokens[i].PublicPoint)
+		hash := HashTuple([]byte("sender token"), tokens[i].Id, tokens[i].PublicPoint)
 
 		tokens[i].Signature = ed25519.Sign(privkey, hash)
 	}

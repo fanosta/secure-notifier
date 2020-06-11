@@ -14,6 +14,10 @@ import (
 type KeyStruct struct {
 	PrivateKey []byte `json:"privatekey"`
 }
+type Peer struct {
+	Name string `json:"name"`
+	Publickey []byte `json:"publickey"`
+}
 
 func loadKey(filePath string) (ed25519.PrivateKey, error) {
 	var keyStruct KeyStruct
@@ -119,6 +123,34 @@ func getToken(tokens *[]PrivateSenderToken, id []byte) (PrivateSenderToken, erro
 
 func saveTokens(filePath string, tokens []PrivateSenderToken) error {
 	marshalled, err := json.MarshalIndent(tokens, "", "  ")
+
+	if err != nil {
+		return err
+	}
+
+	if err := ioutil.WriteFile(filePath, marshalled, 0600); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func loadPeers(filePath string) ([]Peer, error) {
+	var peers []Peer
+	bytes, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		return nil, err
+	}
+	err = json.Unmarshal(bytes, &peers)
+	if err != nil {
+		return nil, err
+	}
+
+	return peers, nil
+}
+
+func savePeers(filePath string, peers []Peer) error {
+	marshalled, err := json.MarshalIndent(peers, "", "  ")
 
 	if err != nil {
 		return err

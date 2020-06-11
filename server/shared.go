@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"hash"
 
 	"golang.org/x/crypto/sha3"
@@ -35,6 +34,9 @@ type Error struct {
 	Error string `json:"error"`
 }
 
+const MSGTYPE_INIT byte = 1
+const MSGTYPE_ENCRYPTED byte = 2
+
 type Message struct {
 	Recipient []byte `json:"recipient"`
 	Message   []byte `json:"msg"`
@@ -42,6 +44,11 @@ type Message struct {
 
 type SmallMessage struct {
 	Message []byte `json:"msg"`
+}
+
+type QrCode struct {
+	PublicKey []byte `json:"pubkey"`
+	OnetimeKey []byte `json:"onetimekey"`
 }
 
 type SenderToken struct {
@@ -60,7 +67,7 @@ func WriteJson(conn *websocket.Conn, h *hash.Hash, v interface{}) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println(string(marshalled))
+	// fmt.Println(string(marshalled))
 	_, err = (*h).Write(marshalled)
 	if err != nil {
 		return err
@@ -81,7 +88,7 @@ func ReadJson(conn *websocket.Conn, h *hash.Hash, v interface{}) error {
 	if msgtype != websocket.TextMessage {
 		return errors.New("wrong message type")
 	}
-	fmt.Println(string(marshalled))
+	// fmt.Println(string(marshalled))
 
 	_, err = (*h).Write(marshalled)
 	if err != nil {

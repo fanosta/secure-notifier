@@ -25,11 +25,17 @@ class MainActivity : Activity() {
   }
 
   fun initKeyManager(view: View?) {
-    val km = KeyManager(this)
+    var km = KeyManager(this)
     km.storeData("SECRET")
     textView!!.text = km.loadData()
     val shared_key = km.keyAgreement()
     Log.d("DH", Base64.encodeToString(shared_key, Base64.DEFAULT))
+
+    val keyPair = km.getDeviceKeyPair()
+    Log.d("Device KeyPair #1", "Request 2 returns same KeyPair: ${km.getDeviceKeyPair() == keyPair}")
+    Log.d("Device KeyPair #2", "Request 3 returns same KeyPair: ${km.getDeviceKeyPair() == keyPair}")
+    km = KeyManager(this)
+    Log.d("Device KeyPair #3", "Request with new km returns same KeyPair: ${km.getDeviceKeyPair() == keyPair}")
   }
 
   fun openNetworkTestActivity(view: View?) {

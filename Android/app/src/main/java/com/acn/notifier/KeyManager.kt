@@ -4,22 +4,19 @@ import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
 import android.util.Log
-import org.bouncycastle.asn1.x9.X9ECParameters
+import com.google.gson.Gson
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.KeyGenerationParameters
 import org.bouncycastle.crypto.agreement.X25519Agreement
-import org.bouncycastle.crypto.ec.CustomNamedCurves
+import org.bouncycastle.crypto.generators.Ed25519KeyPairGenerator
 import org.bouncycastle.crypto.generators.X25519KeyPairGenerator
 import org.bouncycastle.crypto.params.AsymmetricKeyParameter
-import org.bouncycastle.jce.provider.BouncyCastleProvider
-import org.bouncycastle.jce.spec.ECParameterSpec
-import org.bouncycastle.math.ec.rfc7748.X25519
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
+import java.lang.Exception
 import java.security.*
 import javax.crypto.Cipher
-import javax.crypto.KeyAgreement
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
@@ -31,6 +28,7 @@ class KeyManager(mainActivity: MainActivity) {
     val ks: KeyStore
     var key_file: File? = null
     var iv: ByteArray? = null
+    var device_kp: AsymmetricCipherKeyPair? = null
 
     init {
         val context = mainActivity.applicationContext
@@ -85,6 +83,48 @@ class KeyManager(mainActivity: MainActivity) {
 
         return String(decrypted_data, Charsets.UTF_8)
 
+    }
+
+    private fun generateED25519KeyPair() : AsymmetricCipherKeyPair {
+        val keyPairGenerator = Ed25519KeyPairGenerator()
+        val nonce = SecureRandom()
+
+        keyPairGenerator.init(KeyGenerationParameters(nonce, 0))
+
+        Log.d("DeviceKeyPair", "Generated new ED25519 KeyPair")
+        return keyPairGenerator.generateKeyPair()
+    }
+
+    private fun loadDeviceKeyPairFromFile() : AsymmetricCipherKeyPair? {
+        var keyPair: AsymmetricCipherKeyPair? = null
+
+        try {
+            val storageData = loadData()
+            keyPair = Gson().fromJson(storageData, AsymmetricCipherKeyPair::class.java)
+        }
+        catch (exception : Exception) {
+            Log.d("DeviceKeyPair", "Unable to load existing KeyPair from file due to: ${exception.message}")
+        }
+
+        return keyPair
+    }
+
+    private fun storeDeviceKeyPairToFile() {
+        if(device_kp == null) return
+
+        storeData(Gson().toJson(device_kp).toString())
+        Log.d("DeviceKeyPair", "Stored KeyPair to encrypted File")
+    }
+
+    fun getDeviceKeyPair() : AsymmetricCipherKeyPair {
+        if(device_kp != null) return device_kp!!
+
+        device_kp = loadDeviceKeyPairFromFile()
+        if(device_kp != null) return device_kp!!
+
+        device_kp = generateED25519KeyPair()
+        storeDeviceKeyPairToFile()
+        return device_kp!!
     }
 
     private fun writeToFile(encrypted_data: String) {

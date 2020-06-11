@@ -5,9 +5,15 @@ import android.security.keystore.KeyProperties
 import android.util.Base64
 import android.util.Log
 import org.bouncycastle.asn1.x9.X9ECParameters
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+import org.bouncycastle.crypto.KeyGenerationParameters
+import org.bouncycastle.crypto.agreement.X25519Agreement
 import org.bouncycastle.crypto.ec.CustomNamedCurves
+import org.bouncycastle.crypto.generators.X25519KeyPairGenerator
+import org.bouncycastle.crypto.params.AsymmetricKeyParameter
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.bouncycastle.jce.spec.ECParameterSpec
+import org.bouncycastle.math.ec.rfc7748.X25519
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -114,46 +120,42 @@ class KeyManager(mainActivity: MainActivity) {
     }
 
     // TODO: replace with real SenderToken
-    fun getSenderToken(): PublicKey{
-        val key_pair: KeyPair = generateECDHKeyPair()
+    fun getSenderToken(): AsymmetricKeyParameter{
+        val key_pair: AsymmetricCipherKeyPair = generateECDHKeyPair()
 
         return key_pair.getPublic()
     }
 
-    fun generateECDHKeyPair(): KeyPair {
-        val curve_25519: X9ECParameters = CustomNamedCurves.getByName("Curve25519")
-        val ec_spec = ECParameterSpec(
-            curve_25519.getCurve(),
-            curve_25519.getG(),
-            curve_25519.getN(),
-            curve_25519.getH(),
-            curve_25519.getSeed()
-        )
+    fun generateECDHKeyPair(): AsymmetricCipherKeyPair {
+        val key_pair_generator = X25519KeyPairGenerator()
+        val nonce = SecureRandom()
+        val tmp = KeyGenerationParameters(nonce, 0)
+        key_pair_generator.init(tmp)
 
-        val key_pair_generator: KeyPairGenerator = KeyPairGenerator.getInstance("EC", BouncyCastleProvider())
-        key_pair_generator.initialize(ec_spec)
-
-        val key_pair: KeyPair = key_pair_generator.generateKeyPair()
+        val key_pair: AsymmetricCipherKeyPair = key_pair_generator.generateKeyPair()
 
         return key_pair
     }
 
-    fun getSharedSecret(public_key: PublicKey, private_key: PrivateKey): ByteArray {
-        val key_agreement: KeyAgreement = KeyAgreement.getInstance("ECDH", BouncyCastleProvider())
+    fun getSharedSecret(public_key: AsymmetricKeyParameter, private_key: AsymmetricKeyParameter): ByteArray {
+        val key_agreement = X25519Agreement()
         key_agreement.init(private_key)
-        key_agreement.doPhase(public_key, true)
+        key_agreement.agreementSize
+        val shared_key = ByteArray(key_agreement.agreementSize)
+        key_agreement.calculateAgreement(public_key, shared_key, 0)
 
-        return key_agreement.generateSecret()
+        return shared_key
     }
 
     fun keyAgreement(): ByteArray {
         // get token id + public key
-        val server_public_key: PublicKey = getSenderToken()
+        val server_public_key: AsymmetricKeyParameter = getSenderToken()
 
-        val key_pair: KeyPair = generateECDHKeyPair()
+        val key_pair: AsymmetricCipherKeyPair = generateECDHKeyPair()
         // send client_public_key to server
-        val client_public_key: PublicKey = key_pair.getPublic()
-        val client_private_key: PrivateKey = key_pair.getPrivate()
+
+        val client_public_key: AsymmetricKeyParameter = key_pair.getPublic()
+        val client_private_key: AsymmetricKeyParameter = key_pair.getPrivate()
         // encrypt message with shared key
         val shared_key = getSharedSecret(server_public_key, client_private_key)
 

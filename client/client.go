@@ -6,10 +6,10 @@ import (
 	"crypto/cipher"
 	"crypto/ed25519"
 	"crypto/rand"
-	"encoding/json"
-	"encoding/binary"
 	"encoding/base64"
+	"encoding/binary"
 	_ "encoding/hex"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -20,6 +20,7 @@ import (
 	"path"
 
 	"github.com/gorilla/websocket"
+	"golang.org/x/crypto/curve25519"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -174,12 +175,40 @@ func pair(pubkey ed25519.PublicKey, init_channel chan []byte, new_peer_chan chan
 }
 
 
-func decrypt_message(message []byte, senderTokens *[]PrivateSenderToken) (*string, error) {
-	result := "foo"
+func decrypt_message(raw_message []byte, senderTokens *[]PrivateSenderToken) (*string, error) {
+	token_id := raw_message[0:32]
+	sender_keyshare := raw_message[32:64]
+	nonce := raw_message[64:112]
+	ciphertext := raw_message[112:]
+
+	privateToken, err := getToken(senderTokens, token_id)
+	if err != nil {
+		return nil, err
+	}
+
+	shared_key, err := curve25519.X25519(privateToken.PrivateScalar, sender_keyshare)
+	if err != nil {
+		return nil, err
+	}
+
+	block_cipher, err := aes.NewCipher(shared_key)
+	if err != nil {
+		panic(err.Error())
+	}
+	aesgcm, err := cipher.NewGCM(block_cipher)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	plaintext, err := aesgcm.Open(nil, nonce, ciphertext, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	result := string(plaintext)
 
 	return &result, nil
 }
-
 
 
 func main() {
@@ -305,6 +334,10 @@ func main() {
 					decrypted_msg, err = decrypt_message(msgcontent, &tokens)
 				default:
 					fmt.Printf("unexpted message type: %d\n", msgtype)
+			}
+
+			if err != nil {
+				fmt.Printf("Error while receiving message: %s\n", err)
 			}
 
 			if decrypted_msg != nil {

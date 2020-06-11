@@ -3,6 +3,8 @@ package com.acn.notifier
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
+import android.util.Base64
+import android.util.Log
 import android.view.View
 import android.widget.TextView
 import com.google.android.gms.common.api.CommonStatusCodes
@@ -26,6 +28,8 @@ class MainActivity : Activity() {
     val km = KeyManager(this)
     km.storeData("SECRET")
     textView!!.text = km.loadData()
+    val shared_key = km.keyAgreement()
+    Log.d("DH", Base64.encodeToString(shared_key, Base64.DEFAULT))
   }
 
   fun openNetworkTestActivity(view: View?) {

@@ -4,15 +4,19 @@ import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
 import android.util.Log
+import org.spongycastle.asn1.x9.X9ECParameters
+import org.spongycastle.crypto.ec.CustomNamedCurves
+import org.spongycastle.jce.provider.BouncyCastleProvider
+import org.spongycastle.jce.spec.ECParameterSpec
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
-import java.security.KeyStore
+import java.security.*
 import javax.crypto.Cipher
+import javax.crypto.KeyAgreement
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
-
 
 class KeyManager(mainActivity: MainActivity) {
 
@@ -107,5 +111,52 @@ class KeyManager(mainActivity: MainActivity) {
         Log.d(km_tag, "loadData")
         val encrypted_data = readFromFile()
         return decryptData(encrypted_data)
+    }
+
+    // TODO: replace with real SenderToken
+    fun getSenderToken(): PublicKey{
+        val key_pair: KeyPair = generateECDHKeyPair()
+
+        return key_pair.getPublic()
+    }
+
+    fun generateECDHKeyPair(): KeyPair {
+        val curve_25519: X9ECParameters = CustomNamedCurves.getByName("Curve25519")
+        val ec_spec = ECParameterSpec(
+            curve_25519.getCurve(),
+            curve_25519.getG(),
+            curve_25519.getN(),
+            curve_25519.getH(),
+            curve_25519.getSeed()
+        )
+
+        val key_pair_generator: KeyPairGenerator = KeyPairGenerator.getInstance("EC", BouncyCastleProvider())
+        key_pair_generator.initialize(ec_spec)
+
+        val key_pair: KeyPair = key_pair_generator.generateKeyPair()
+
+        return key_pair
+    }
+
+    fun getSharedSecret(public_key: PublicKey, private_key: PrivateKey): ByteArray {
+        val key_agreement: KeyAgreement = KeyAgreement.getInstance("ECDH", BouncyCastleProvider())
+        key_agreement.init(private_key)
+        key_agreement.doPhase(public_key, true)
+
+        return key_agreement.generateSecret()
+    }
+
+    fun keyAgreement(): ByteArray {
+        // get token id + public key
+        val server_public_key: PublicKey = getSenderToken()
+
+        val key_pair: KeyPair = generateECDHKeyPair()
+        // send client_public_key to server
+        val client_public_key: PublicKey = key_pair.getPublic()
+        val client_private_key: PrivateKey = key_pair.getPrivate()
+        // encrypt message with shared key
+        val shared_key = getSharedSecret(server_public_key, client_private_key)
+
+        return shared_key
     }
 }

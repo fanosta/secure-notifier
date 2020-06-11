@@ -34,8 +34,20 @@ class MainActivity : Activity() {
     val keyPair = km.getDeviceKeyPair()
     Log.d("Device KeyPair #1", "Request 2 returns same KeyPair: ${km.getDeviceKeyPair() == keyPair}")
     Log.d("Device KeyPair #2", "Request 3 returns same KeyPair: ${km.getDeviceKeyPair() == keyPair}")
-    km = KeyManager(this)
-    Log.d("Device KeyPair #3", "Request with new km returns same KeyPair: ${km.getDeviceKeyPair() == keyPair}")
+    var km2 = KeyManager(this)
+    km2 = KeyManager(this)
+    val keyPair2 = km2.getDeviceKeyPair()
+    Log.d("Device KeyPair #3", "Request with new km returns same KeyPair: ${keyPair2 == keyPair}")
+
+    /* message encrypt
+    val message = "Message"
+    Log.d("DH", message)
+    var encrypted = km.encryptMessage(message, shared_key)
+    Log.d("DH", encrypted)
+    var decrypted = km.decryptMessage(encrypted, shared_key)
+    Log.d("DH", decrypted)
+    Log.d("DH", Base64.encodeToString(km.getIV(), Base64.DEFAULT))
+     */
   }
 
   fun openNetworkTestActivity(view: View?) {

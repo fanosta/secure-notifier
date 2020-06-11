@@ -15,11 +15,13 @@ import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.lang.Exception
-import java.security.*
+import java.security.KeyStore
+import java.security.SecureRandom
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
+import javax.crypto.spec.SecretKeySpec
 
 class KeyManager(mainActivity: MainActivity) {
 
@@ -57,6 +59,10 @@ class KeyManager(mainActivity: MainActivity) {
         } else {
             Log.d(km_tag, "key already exists")
         }
+    }
+
+    fun getIV(): ByteArray? {
+        return iv
     }
 
     private fun encryptData(data: String): String {
@@ -160,24 +166,24 @@ class KeyManager(mainActivity: MainActivity) {
     }
 
     // TODO: replace with real SenderToken
-    fun getSenderToken(): AsymmetricKeyParameter{
-        val key_pair: AsymmetricCipherKeyPair = generateECDHKeyPair()
+    private fun getSenderToken(): AsymmetricKeyParameter {
+        val key_pair: AsymmetricCipherKeyPair = generateX25519KeyPair()
 
         return key_pair.getPublic()
     }
 
-    fun generateECDHKeyPair(): AsymmetricCipherKeyPair {
+    private fun generateX25519KeyPair(): AsymmetricCipherKeyPair {
         val key_pair_generator = X25519KeyPairGenerator()
-        val nonce = SecureRandom()
-        val tmp = KeyGenerationParameters(nonce, 0)
-        key_pair_generator.init(tmp)
+        val secure_random = SecureRandom()
+        val params = KeyGenerationParameters(secure_random, 0)
+        key_pair_generator.init(params)
 
         val key_pair: AsymmetricCipherKeyPair = key_pair_generator.generateKeyPair()
 
         return key_pair
     }
 
-    fun getSharedSecret(public_key: AsymmetricKeyParameter, private_key: AsymmetricKeyParameter): ByteArray {
+    private fun getSharedSecret(public_key: AsymmetricKeyParameter, private_key: AsymmetricKeyParameter): ByteArray {
         val key_agreement = X25519Agreement()
         key_agreement.init(private_key)
         key_agreement.agreementSize
@@ -191,14 +197,38 @@ class KeyManager(mainActivity: MainActivity) {
         // get token id + public key
         val server_public_key: AsymmetricKeyParameter = getSenderToken()
 
-        val key_pair: AsymmetricCipherKeyPair = generateECDHKeyPair()
+        val key_pair: AsymmetricCipherKeyPair = generateX25519KeyPair()
         // send client_public_key to server
-
         val client_public_key: AsymmetricKeyParameter = key_pair.getPublic()
         val client_private_key: AsymmetricKeyParameter = key_pair.getPrivate()
         // encrypt message with shared key
         val shared_key = getSharedSecret(server_public_key, client_private_key)
 
         return shared_key
+    }
+
+    fun encryptMessage(data: String, shared_key: ByteArray): String {
+        val secret_key: SecretKey = SecretKeySpec(shared_key, 0, shared_key.size, "AES")
+        val cipher_instance = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher_instance.init(Cipher.ENCRYPT_MODE, secret_key)
+        iv = cipher_instance.getIV()
+
+        val encrypted_message = cipher_instance.doFinal(data.toByteArray())
+        val encoded_message = Base64.encodeToString(encrypted_message, Base64.DEFAULT)
+
+        return encoded_message
+    }
+
+    fun decryptMessage(data: String, shared_key: ByteArray): String {
+        val decoded_message = Base64.decode(data, Base64.DEFAULT)
+
+        val secret_key: SecretKey = SecretKeySpec(shared_key, 0, shared_key.size, "AES")
+        val cipher_instance = Cipher.getInstance("AES/GCM/NoPadding")
+        val spec = GCMParameterSpec(128, iv)
+        cipher_instance.init(Cipher.DECRYPT_MODE, secret_key, spec)
+
+        val decrypted_message = cipher_instance.doFinal(decoded_message)
+
+        return String(decrypted_message, Charsets.UTF_8)
     }
 }

@@ -4,6 +4,7 @@ import (
 	"crypto/ed25519"
 	"crypto/hmac"
 	"encoding/json"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"hash"
@@ -44,9 +45,14 @@ type SmallMessage struct {
 }
 
 type SenderToken struct {
-	Id          []byte `json:"sender_token_id"`
-	PublicPoint []byte `json:"public_point"`
-	Signature   []byte `json:"signature"`
+	Id            []byte `json:"sender_token_id"`
+	PublicPoint   []byte `json:"public_point"`
+	Signature     []byte `json:"signature"`
+}
+
+type PrivateSenderToken struct {
+	SenderToken
+	PrivateScalar []byte
 }
 
 func WriteJson(conn *websocket.Conn, h *hash.Hash, v interface{}) error {
@@ -88,6 +94,19 @@ func ReadJson(conn *websocket.Conn, h *hash.Hash, v interface{}) error {
 	}
 
 	return nil
+}
+
+func HashTuple(messages ...[]byte) []byte {
+	hash := sha3.New256()
+
+	for _, msg := range messages {
+		bytelen := make([]byte, 8)
+		binary.LittleEndian.PutUint64(bytelen, uint64(len(msg)))
+		hash.Write(bytelen)
+		hash.Write(msg)
+	}
+
+	return hash.Sum(nil)
 }
 
 func SignWithContext(privkey ed25519.PrivateKey, msg []byte, transcriptHash []byte) []byte {

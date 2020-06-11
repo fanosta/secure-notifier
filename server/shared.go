@@ -1,13 +1,12 @@
 package main
 
-
 import (
 	"crypto/ed25519"
 	"crypto/hmac"
 	"encoding/json"
 	"errors"
-	"hash"
 	"fmt"
+	"hash"
 
 	"golang.org/x/crypto/sha3"
 
@@ -20,11 +19,15 @@ type ServerHello struct {
 
 type ClientHello struct {
 	ClientRandom string `json:"client_random"`
-	PublicKey string `json:"pubkey"`
+	PublicKey    string `json:"pubkey"`
 }
 
 type Signature struct {
 	Signature string `json:"signature"`
+}
+
+type HandshakeFinished struct {
+	Success bool `json:"success"`
 }
 
 type Error struct {
@@ -32,12 +35,21 @@ type Error struct {
 }
 
 type Message struct {
-	recipient [32]byte;
-	message   []byte;
+	Recipient []byte `json:"recipient"`
+	Message   []byte `json:"msg"`
 }
 
+type SmallMessage struct {
+	Message []byte `json:"msg"`
+}
 
-func WriteJson(conn *websocket.Conn, h *hash.Hash, v interface {}) error {
+type SenderToken struct {
+	Id          []byte `json:"sender_token_id"`
+	PublicPoint []byte `json:"public_point"`
+	Signature   []byte `json:"signature"`
+}
+
+func WriteJson(conn *websocket.Conn, h *hash.Hash, v interface{}) error {
 	marshalled, err := json.Marshal(v)
 	if err != nil {
 		return err
@@ -55,7 +67,7 @@ func WriteJson(conn *websocket.Conn, h *hash.Hash, v interface {}) error {
 	return nil
 }
 
-func ReadJson(conn *websocket.Conn, h *hash.Hash, v interface {}) error {
+func ReadJson(conn *websocket.Conn, h *hash.Hash, v interface{}) error {
 	msgtype, marshalled, err := conn.ReadMessage()
 	if err != nil {
 		return err

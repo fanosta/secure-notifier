@@ -12,6 +12,9 @@ import org.bouncycastle.crypto.agreement.X25519Agreement
 import org.bouncycastle.crypto.generators.Ed25519KeyPairGenerator
 import org.bouncycastle.crypto.generators.X25519KeyPairGenerator
 import org.bouncycastle.crypto.params.AsymmetricKeyParameter
+import org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters
+import org.bouncycastle.crypto.params.Ed25519PublicKeyParameters
+import org.bouncycastle.crypto.signers.Ed25519Signer
 import org.bouncycastle.jcajce.provider.digest.SHA3
 import org.bouncycastle.jcajce.provider.digest.SHA3.DigestSHA3
 import java.io.File
@@ -33,7 +36,7 @@ class KeyManager(mainActivity: MainActivity) {
     val key_name = "file_key"
     val ks: KeyStore
     var pubkey_file: File? = null
-    var keypair_file: File? = null
+    var device_prkey_file: File? = null
     var iv: ByteArray? = null
     var device_kp: AsymmetricCipherKeyPair? = null
 
@@ -44,7 +47,7 @@ class KeyManager(mainActivity: MainActivity) {
         keyDirectory.mkdirs()
 
         pubkey_file = File(keyDirectory, "pubkey.txt")
-        keypair_file = File(keyDirectory, "keypair.txt")
+        device_prkey_file = File(keyDirectory, "device_prkey_spec.txt")
 
         ks = KeyStore.getInstance("AndroidKeyStore")
         ks.load(null)
@@ -153,8 +156,8 @@ class KeyManager(mainActivity: MainActivity) {
         var keyPair: AsymmetricCipherKeyPair? = null
 
         try {
-            val storageData = loadData(keypair_file)
-            keyPair = Gson().fromJson(storageData, AsymmetricCipherKeyPair::class.java)
+            val privateKeyParameters = Gson().fromJson(loadData(device_prkey_file), Ed25519PrivateKeyParameters::class.java)
+            device_kp = AsymmetricCipherKeyPair(privateKeyParameters.generatePublicKey(), privateKeyParameters)
         }
         catch (exception : Exception) {
             Log.d("DeviceKeyPair", "Unable to load existing KeyPair from file due to: ${exception.message}")
@@ -166,7 +169,7 @@ class KeyManager(mainActivity: MainActivity) {
     private fun storeDeviceKeyPairToFile() {
         if(device_kp == null) return
 
-        storeData(Gson().toJson(device_kp).toString(), keypair_file)
+        storeData(Gson().toJson(device_kp!!.private as Ed25519PrivateKeyParameters), device_prkey_file)
         Log.d("DeviceKeyPair", "Stored KeyPair to encrypted File")
     }
 
@@ -179,6 +182,26 @@ class KeyManager(mainActivity: MainActivity) {
         device_kp = generateED25519KeyPair()
         storeDeviceKeyPairToFile()
         return device_kp!!
+    }
+
+    fun sign(message : String) : ByteArray {
+        val messageBytes = message.toByteArray()
+
+        val signer = Ed25519Signer()
+        signer.init(true, getDeviceKeyPair().private as Ed25519PrivateKeyParameters)
+        signer.update(messageBytes, 0, messageBytes.size)
+
+        return signer.generateSignature()
+    }
+
+    fun verifySign(message: String, signature: ByteArray) : Boolean {
+        val messageBytes = message.toByteArray()
+
+        val verifier = Ed25519Signer()
+        verifier.init(false, getDeviceKeyPair().public as Ed25519PublicKeyParameters)
+        verifier.update(messageBytes, 0, messageBytes.size)
+
+        return verifier.verifySignature(signature)
     }
 
     // TODO: replace with real SenderToken

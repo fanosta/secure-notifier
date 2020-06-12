@@ -28,18 +28,18 @@ class MainActivity : Activity() {
 
   fun initKeyManager(view: View?) {
 
-    textView!!.text = km?.loadData(km?.keypair_file)
+    textView!!.text = km?.loadData(km?.device_prkey_file)
     //val shared_key = km?.keyAgreement()
     //Log.d("DH", Base64.encodeToString(shared_key, Base64.DEFAULT))
-/*
-    val keyPair = km.getDeviceKeyPair()
-    Log.d("Device KeyPair #1", "Request 2 returns same KeyPair: ${km.getDeviceKeyPair() == keyPair}")
-    Log.d("Device KeyPair #2", "Request 3 returns same KeyPair: ${km.getDeviceKeyPair() == keyPair}")
+
+    val messageToSign = "Hello"
+    val sign1 = km?.sign(messageToSign)
+    Log.d("Sign", "Sign 1: ${km?.sign(messageToSign)}\tSign1 still valid: ${km?.verifySign(messageToSign, sign1!!)}")
+    Log.d("Sign", "Sign 2: ${km?.sign(messageToSign)}\tSign1 still valid: ${km?.verifySign(messageToSign, sign1!!)}")
     var km2 = KeyManager(this)
-    km2 = KeyManager(this)
-    val keyPair2 = km2.getDeviceKeyPair()
-    Log.d("Device KeyPair #3", "Request with new km returns same KeyPair: ${keyPair2 == keyPair}")
-*/
+    Log.d("Sign", "Sign 3: ${km?.sign(messageToSign)}\tSign1 still valid: ${km?.verifySign(messageToSign, sign1!!)}")
+    Log.d("Sign", "Sign 4: ${km?.sign(messageToSign)}\tSign1 still valid: ${km?.verifySign(messageToSign, sign1!!)}")
+
     /* message encrypt
     val message = "Message"
     Log.d("DH", message)

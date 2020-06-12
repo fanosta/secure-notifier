@@ -34,6 +34,12 @@ var new_client = flag.Bool("new-client", false, "pair a new client")
 
 var peers []Peer
 
+type DecryptedMessage struct {
+	SenderPublicKey []byte
+	SenderName string
+	Message string
+}
+
 func authorize(conn *websocket.Conn, privkey ed25519.PrivateKey) (*HandshakeFinished, error) {
 	transcriptHash := sha3.New256()
 	var serverHello ServerHello
@@ -176,7 +182,7 @@ func pair(pubkey ed25519.PublicKey, init_channel chan []byte, new_peer_chan chan
 }
 
 
-func decrypt_message(raw_message []byte, senderTokens *[]PrivateSenderToken) (*string, error) {
+func decrypt_message(raw_message []byte, senderTokens *[]PrivateSenderToken) (*DecryptedMessage, error) {
 	token_id := raw_message[0:32]
 	sender_keyshare := raw_message[32:64]
 	nonce := raw_message[64:112]
@@ -206,7 +212,26 @@ func decrypt_message(raw_message []byte, senderTokens *[]PrivateSenderToken) (*s
 		return nil, err
 	}
 
-	result := string(plaintext)
+	signature := plaintext[:64]
+	publickey := plaintext[64:96]
+	msg := plaintext[96:]
+
+	sendername, err := getPeerName(publickey, peers)
+	if err != nil {
+		return nil, err
+	}
+
+	hash := HashTuple([]byte("message signature"), token_id, msg)
+
+	if !ed25519.Verify(publickey, hash, signature) {
+		return nil, errors.New("signature verification failed")
+	}
+
+	result := DecryptedMessage {
+		SenderPublicKey: publickey,
+		SenderName: sendername,
+		Message: string(msg),
+	}
 
 	return &result, nil
 }
@@ -324,7 +349,7 @@ func main() {
 		case msg := <-msg_chan:
 			msgtype := msg[0]
 			msgcontent := msg[1:]
-			var decrypted_msg *string = nil
+			var decrypted_msg *DecryptedMessage = nil
 			err = nil
 			switch msgtype {
 				case MSGTYPE_INIT:
@@ -347,7 +372,9 @@ func main() {
 
 			if decrypted_msg != nil {
 				fmt.Println(*decrypted_msg)
-				cmd := exec.Command("notify-send", "ACN", *decrypted_msg)
+				cmd := exec.Command("notify-send",
+									decrypted_msg.SenderName,
+									decrypted_msg.Message)
 				cmd.Run()
 			}
 		}

@@ -149,6 +149,15 @@ func loadPeers(filePath string) ([]Peer, error) {
 	return peers, nil
 }
 
+func getPeerName(pubkey []byte, peers []Peer) (string, error) {
+	for _, peer := range peers {
+		if subtle.ConstantTimeCompare(peer.Publickey, pubkey) == 1 {
+			return peer.Name, nil
+		}
+	}
+	return "", errors.New("unkown peer")
+}
+
 func savePeers(filePath string, peers []Peer) error {
 	marshalled, err := json.MarshalIndent(peers, "", "  ")
 

@@ -12,9 +12,13 @@ import org.bouncycastle.crypto.agreement.X25519Agreement
 import org.bouncycastle.crypto.generators.Ed25519KeyPairGenerator
 import org.bouncycastle.crypto.generators.X25519KeyPairGenerator
 import org.bouncycastle.crypto.params.AsymmetricKeyParameter
+import org.bouncycastle.jcajce.provider.digest.SHA3
+import org.bouncycastle.jcajce.provider.digest.SHA3.DigestSHA3
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.security.KeyStore
 import java.security.SecureRandom
 import javax.crypto.Cipher
@@ -217,6 +221,20 @@ class KeyManager(mainActivity: MainActivity) {
         val shared_key = getSharedSecret(server_public_key, client_private_key)
 
         return shared_key
+    }
+
+    fun hashTuple(vararg messages: ByteArray): ByteArray
+    {
+        val hash: DigestSHA3 = SHA3.Digest256()
+
+        for (msg in messages) {
+            val bytelen: ByteBuffer = ByteBuffer.allocate(8)
+            bytelen.order(ByteOrder.LITTLE_ENDIAN)
+            bytelen.putInt((msg.size))
+            hash.update(bytelen.array())
+            hash.update(msg)
+        }
+        return hash.digest()
     }
 
     fun encryptMessage(data: String, shared_key: ByteArray): String {

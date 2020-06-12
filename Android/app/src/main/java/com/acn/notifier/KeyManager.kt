@@ -5,6 +5,7 @@ import android.security.keystore.KeyProperties
 import android.util.Base64
 import android.util.Log
 import com.google.gson.Gson
+import com.google.gson.JsonObject
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.KeyGenerationParameters
 import org.bouncycastle.crypto.agreement.X25519Agreement
@@ -14,7 +15,6 @@ import org.bouncycastle.crypto.params.AsymmetricKeyParameter
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
-import java.lang.Exception
 import java.security.KeyStore
 import java.security.SecureRandom
 import javax.crypto.Cipher
@@ -147,7 +147,7 @@ class KeyManager(mainActivity: MainActivity) {
             it.readText()
         }
 
-        val split = read_from_file.split("\n")
+        val split = read_from_file.split('\n' , limit = 2)
         iv = Base64.decode(split.get(0).toByteArray(), Base64.DEFAULT)
 
         return split.get(1)
@@ -230,5 +230,16 @@ class KeyManager(mainActivity: MainActivity) {
         val decrypted_message = cipher_instance.doFinal(decoded_message)
 
         return String(decrypted_message, Charsets.UTF_8)
+    }
+
+    fun publicKeyExchange(scan_result: String?) {
+        Log.d(km_tag, scan_result)
+
+        val json: JsonObject = Gson().fromJson(scan_result, JsonObject::class.java)
+        val pubkey = json.get("pubkey")
+        Log.d(km_tag, pubkey.asString)
+        val onetimekey = json.get("onetimekey")
+        Log.d(km_tag, onetimekey.asString)
+        this.storeData(pubkey.asString)
     }
 }

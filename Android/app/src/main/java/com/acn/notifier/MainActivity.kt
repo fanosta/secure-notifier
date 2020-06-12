@@ -12,11 +12,13 @@ import com.google.android.gms.vision.barcode.Barcode
 
 class MainActivity : Activity() {
   var textView: TextView? = null
+  var km: KeyManager? = null
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     setContentView(R.layout.activity_main)
     textView = findViewById(R.id.textView)
+    km = KeyManager(this)
   }
 
   fun scanBarcode(view: View?) {
@@ -25,12 +27,11 @@ class MainActivity : Activity() {
   }
 
   fun initKeyManager(view: View?) {
-    var km = KeyManager(this)
-    km.storeData("SECRET")
-    textView!!.text = km.loadData()
-    val shared_key = km.keyAgreement()
-    Log.d("DH", Base64.encodeToString(shared_key, Base64.DEFAULT))
 
+    textView!!.text = km?.loadData()
+    //val shared_key = km?.keyAgreement()
+    //Log.d("DH", Base64.encodeToString(shared_key, Base64.DEFAULT))
+/*
     val keyPair = km.getDeviceKeyPair()
     Log.d("Device KeyPair #1", "Request 2 returns same KeyPair: ${km.getDeviceKeyPair() == keyPair}")
     Log.d("Device KeyPair #2", "Request 3 returns same KeyPair: ${km.getDeviceKeyPair() == keyPair}")
@@ -38,7 +39,7 @@ class MainActivity : Activity() {
     km2 = KeyManager(this)
     val keyPair2 = km2.getDeviceKeyPair()
     Log.d("Device KeyPair #3", "Request with new km returns same KeyPair: ${keyPair2 == keyPair}")
-
+*/
     /* message encrypt
     val message = "Message"
     Log.d("DH", message)
@@ -68,6 +69,7 @@ class MainActivity : Activity() {
       if (resultCode == CommonStatusCodes.SUCCESS) {
         if (data != null) {
           val barcode: Barcode? = data.getParcelableExtra("received")
+          km?.publicKeyExchange(barcode?.displayValue)
           textView!!.text = barcode?.displayValue
         } else {
           textView!!.text = "error occurred"

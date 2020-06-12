@@ -142,13 +142,12 @@ func readPump(conn *websocket.Conn, pubkey ed25519.PublicKey) {
 		var newTokens []SenderToken
 		err := conn.ReadJSON(&newTokens)
 		if err != nil {
-			fmt.Printf("error: %v", err)
+			fmt.Printf("error: %v\n", err)
 			break
 		}
 		
 		tokensMut.Lock()
 		senderTokens[pubkeyarr] = append(senderTokens[pubkeyarr], newTokens...)
-		fmt.Printf("%s\n", senderTokens[pubkeyarr])
 		tokensMut.Unlock()
 	}
 }
@@ -179,8 +178,7 @@ func writePump(conn *websocket.Conn, pubkey ed25519.PublicKey) {
 	messagesMut.Lock()
 	var newQueue [][]byte = nil
 	for _, msg := range queuedMessages[pubkeyArr] {
-		// FIXME: not getting delivered?
-		err = conn.WriteJSON(Message{Recipient: pubkeyArr[:], Message: msg})
+		err = conn.WriteJSON(SmallMessage{Message: msg})
 		if err != nil {
 			newQueue = append(newQueue, msg)
 		}
@@ -242,8 +240,6 @@ func sendMessage(c *gin.Context) {
 	var recipientArr [32]byte
 	copy(recipientArr[:], msg.Recipient[:])
 
-	fmt.Println(msg.Recipient)
-	fmt.Println(msg.Message)
 	submitMessage(recipientArr, msg.Message)
 
 	c.JSON(201, strToMsg("msg submitted"))

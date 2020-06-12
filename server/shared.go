@@ -2,7 +2,6 @@ package main
 
 import (
 	"crypto/ed25519"
-	"crypto/hmac"
 	"encoding/json"
 	"encoding/binary"
 	"errors"
@@ -118,19 +117,11 @@ func HashTuple(messages ...[]byte) []byte {
 }
 
 func SignWithContext(privkey ed25519.PrivateKey, msg []byte, transcriptHash []byte) []byte {
-	hmac := hmac.New(sha3.New256, transcriptHash)
-
-	hmac.Write(msg)
-	sum := hmac.Sum(nil)
-
+	sum := HashTuple([]byte("signature with transcript hash"), msg, transcriptHash)
 	return ed25519.Sign(privkey, sum)
 }
 
 func VerifyWithContext(pubkey ed25519.PublicKey, msg []byte, transcriptHash []byte, signature []byte) bool {
-	hmac := hmac.New(sha3.New256, transcriptHash)
-
-	hmac.Write(msg)
-	sum := hmac.Sum(nil)
-
+	sum := HashTuple([]byte("signature with transcript hash"), msg, transcriptHash)
 	return ed25519.Verify(pubkey, sum, signature)
 }

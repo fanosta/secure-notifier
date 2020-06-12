@@ -28,7 +28,7 @@ class MainActivity : Activity() {
 
   fun initKeyManager(view: View?) {
 
-    textView!!.text = km?.loadData()
+    textView!!.text = km?.loadData(km?.keypair_file)
     //val shared_key = km?.keyAgreement()
     //Log.d("DH", Base64.encodeToString(shared_key, Base64.DEFAULT))
 /*

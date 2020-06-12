@@ -28,7 +28,8 @@ class KeyManager(mainActivity: MainActivity) {
     val km_tag = "KeyManager"
     val key_name = "file_key"
     val ks: KeyStore
-    var key_file: File? = null
+    var pubkey_file: File? = null
+    var keypair_file: File? = null
     var iv: ByteArray? = null
     var device_kp: AsymmetricCipherKeyPair? = null
 
@@ -38,7 +39,8 @@ class KeyManager(mainActivity: MainActivity) {
         val keyDirectory = File(path, "key")
         keyDirectory.mkdirs()
 
-        key_file = File(keyDirectory, "key.txt")
+        pubkey_file = File(keyDirectory, "pubkey.txt")
+        keypair_file = File(keyDirectory, "keypair.txt")
 
         ks = KeyStore.getInstance("AndroidKeyStore")
         ks.load(null)
@@ -88,7 +90,49 @@ class KeyManager(mainActivity: MainActivity) {
         val decrypted_data = cipher_instance.doFinal(decoded_data)
 
         return String(decrypted_data, Charsets.UTF_8)
+    }
 
+    private fun writeToFile(encrypted_data: String, file: File?) {
+        val enc_iv = Base64.encodeToString(iv, Base64.DEFAULT)
+        val write_to_file = enc_iv.plus(encrypted_data)
+
+        FileOutputStream(file).use {
+            it.write(write_to_file.toByteArray())
+        }
+    }
+
+    private fun readFromFile(file: File?): String? {
+        var read_from_file: String? = null
+        try {
+             read_from_file = FileInputStream(file).bufferedReader().use {
+                it.readText() }
+        }
+        catch (ex: java.lang.Exception)
+        {
+            Log.d(km_tag, "File does not exist")
+        }
+        if (read_from_file != null) {
+            val split = read_from_file.split('\n', limit = 2)
+            iv = Base64.decode(split.get(0).toByteArray(), Base64.DEFAULT)
+            Log.d(km_tag, split.get(1))
+            return split.get(1)
+        }
+        return null
+    }
+
+    fun storeData(data: String, file: File?) {
+        Log.d(km_tag, "storeData")
+        val encrypted_data = encryptData(data)
+        writeToFile(encrypted_data, file)
+    }
+
+    fun loadData(file: File?): String {
+        Log.d(km_tag, "loadData")
+        val encrypted_data = readFromFile(file)
+        if (encrypted_data != null)
+            return decryptData(encrypted_data)
+        else
+            return "empty file"
     }
 
     private fun generateED25519KeyPair() : AsymmetricCipherKeyPair {
@@ -105,7 +149,7 @@ class KeyManager(mainActivity: MainActivity) {
         var keyPair: AsymmetricCipherKeyPair? = null
 
         try {
-            val storageData = loadData()
+            val storageData = loadData(keypair_file)
             keyPair = Gson().fromJson(storageData, AsymmetricCipherKeyPair::class.java)
         }
         catch (exception : Exception) {
@@ -118,7 +162,7 @@ class KeyManager(mainActivity: MainActivity) {
     private fun storeDeviceKeyPairToFile() {
         if(device_kp == null) return
 
-        storeData(Gson().toJson(device_kp).toString())
+        storeData(Gson().toJson(device_kp).toString(), keypair_file)
         Log.d("DeviceKeyPair", "Stored KeyPair to encrypted File")
     }
 
@@ -131,38 +175,6 @@ class KeyManager(mainActivity: MainActivity) {
         device_kp = generateED25519KeyPair()
         storeDeviceKeyPairToFile()
         return device_kp!!
-    }
-
-    private fun writeToFile(encrypted_data: String) {
-        val enc_iv = Base64.encodeToString(iv, Base64.DEFAULT)
-        val write_to_file = enc_iv.plus(encrypted_data)
-
-        FileOutputStream(key_file).use {
-            it.write(write_to_file.toByteArray())
-        }
-    }
-
-    private fun readFromFile(): String {
-        val read_from_file = FileInputStream(key_file).bufferedReader().use {
-            it.readText()
-        }
-
-        val split = read_from_file.split('\n' , limit = 2)
-        iv = Base64.decode(split.get(0).toByteArray(), Base64.DEFAULT)
-
-        return split.get(1)
-    }
-
-    fun storeData(data: String) {
-        Log.d(km_tag, "storeData")
-        val encrypted_data = encryptData(data)
-        writeToFile(encrypted_data)
-    }
-
-    fun loadData(): String {
-        Log.d(km_tag, "loadData")
-        val encrypted_data = readFromFile()
-        return decryptData(encrypted_data)
     }
 
     // TODO: replace with real SenderToken
@@ -240,6 +252,6 @@ class KeyManager(mainActivity: MainActivity) {
         Log.d(km_tag, pubkey.asString)
         val onetimekey = json.get("onetimekey")
         Log.d(km_tag, onetimekey.asString)
-        this.storeData(pubkey.asString)
+        this.storeData(pubkey.asString, pubkey_file)
     }
 }

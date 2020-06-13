@@ -1,5 +1,9 @@
 package com.acn.notifier
 
+import android.content.Context
+import android.content.ContextWrapper
+import android.content.pm.PackageInfo
+import android.content.pm.PackageManager
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
@@ -30,7 +34,7 @@ import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
 
-class KeyManager(mainActivity: MainActivity) {
+class KeyManager(appContext: Context) {
 
     val km_tag = "KeyManager"
     val key_name = "file_key"
@@ -40,8 +44,7 @@ class KeyManager(mainActivity: MainActivity) {
     var device_kp: AsymmetricCipherKeyPair? = null
 
     init {
-        val context = mainActivity.applicationContext
-        val path = context.getFilesDir()
+        val path = appContext.filesDir
         val keyDirectory = File(path, "key")
         keyDirectory.mkdirs()
 
@@ -198,12 +201,6 @@ class KeyManager(mainActivity: MainActivity) {
         return verifier.verifySignature(signature)
     }
 
-    // TODO: replace with real SenderToken
-    private fun getSenderToken(): AsymmetricKeyParameter {
-        val key_pair: AsymmetricCipherKeyPair = generateX25519KeyPair()
-
-        return key_pair.getPublic()
-    }
 
     private fun generateX25519KeyPair(): AsymmetricCipherKeyPair {
         val key_pair_generator = X25519KeyPairGenerator()
@@ -226,9 +223,12 @@ class KeyManager(mainActivity: MainActivity) {
         return shared_key
     }
 
-    fun keyAgreement(): ByteArray {
+    fun keyAgreement(recipientPublicKey: ByteArray): ByteArray {
         // get token id + public key
-        val server_public_key: AsymmetricKeyParameter = getSenderToken()
+
+        val token = getSenderToken(recipientPublicKey)
+        // FIXME: just keeping the compiler happy
+        val server_public_key: AsymmetricKeyParameter = getDeviceKeyPair().public
 
         val key_pair: AsymmetricCipherKeyPair = generateX25519KeyPair()
         // send client_public_key to server
@@ -247,7 +247,7 @@ class KeyManager(mainActivity: MainActivity) {
         for (msg in messages) {
             val bytelen: ByteBuffer = ByteBuffer.allocate(8)
             bytelen.order(ByteOrder.LITTLE_ENDIAN)
-            bytelen.putInt((msg.size))
+            bytelen.putLong(msg.size.toLong())
             hash.update(bytelen.array())
             hash.update(msg)
         }

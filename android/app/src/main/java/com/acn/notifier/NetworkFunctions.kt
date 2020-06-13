@@ -1,19 +1,27 @@
 package com.acn.notifier
 
-import android.os.IBinder
+import android.accounts.NetworkErrorException
 import android.util.Base64
+import android.util.Log
+import com.google.gson.Gson
 import com.google.gson.JsonObject
-import org.bouncycastle.jcajce.provider.symmetric.ARC4
+import org.bouncycastle.crypto.params.AsymmetricKeyParameter
+import org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters
 import org.json.JSONObject
+import java.io.BufferedReader
 import java.io.DataOutputStream
+import java.io.InputStreamReader
+import java.io.Reader
 import java.net.HttpURLConnection
 import java.net.URL
 import java.nio.charset.StandardCharsets
 
 
-const val NETWORK_ENDPOINT = "https://acn.nageler.org/send";
+const val NETWORK_ENDPOINT_SEND = "https://acn.nageler.org/send";
+const val NETWORK_ENDPOINT_GETTOKEN = "https://acn.nageler.org/get_token";
 const val randomFactsEndpoint = "https://uselessfacts.jsph.pl/random.json?language=";
 
+data class SenderToken(val Id: ByteArray, val PublicPoint: ByteArray, val Signature: ByteArray)
 
 fun requestRandomFact(languageString:String = "en"):String {
     val connection: HttpURLConnection = URL(randomFactsEndpoint + languageString).openConnection() as HttpURLConnection
@@ -30,32 +38,31 @@ fun requestRandomFact(languageString:String = "en"):String {
     return responseFact;
 }
 
-fun requestServerMessages():Collection<MessageElement> {
-    val connection: HttpURLConnection = URL(NETWORK_ENDPOINT).openConnection() as HttpURLConnection
-    val messageElements = mutableListOf<MessageElement>();
+fun getSenderToken(recipient: ByteArray): SenderToken {
+    val url = URL(NETWORK_ENDPOINT_GETTOKEN  + "/" + Base64.encodeToString(recipient, Base64.DEFAULT))
 
-    val jsonMessages = JSONObject(URL(NETWORK_ENDPOINT).readText()).getJSONArray("Messages");
+    val connection = url.openConnection() as HttpURLConnection
+    connection.requestMethod = "GET"
+    connection.doInput = true
 
-    for(index in 0 until jsonMessages.length()) {
-        val jsonMessage = jsonMessages.getJSONObject(index);
-        messageElements.add(
-            MessageElement(
-                jsonMessage.getString("From"),
-                jsonMessage.getString("Message"),
-                jsonMessage.getString("Time")
-            )
-        )
+    if (connection.responseCode >= 400) {
+        // TODO: proper error handling
+        throw NetworkErrorException("got error while requesting sender token")
     }
+    val stream = InputStreamReader(connection.inputStream)
+    val result = Gson().fromJson(stream, SenderToken::class.java)
 
-    return messageElements;
+    // FIXME: verify signature
+
+    return result
+
 }
-
 
 fun pushMessageToServer(messageElement: MessageElement) {
     val message = "{\"Message\": \"${messageElement.message}\", \"From\": \"${messageElement.from}\", \"Time\": \"${messageElement.footer}\"}"; //Use Gson().toJson ...
     println(message);
 
-    val url = URL(NETWORK_ENDPOINT)
+    val url = URL(NETWORK_ENDPOINT_SEND)
     val connection = url.openConnection() as HttpURLConnection
     connection.requestMethod = "POST"
     connection.doOutput = true
@@ -78,7 +85,7 @@ fun sendMessage(message: ByteArray, recipient: ByteArray) {
     json.addProperty("recipient", Base64.encodeToString(recipient, Base64.DEFAULT))
     json.addProperty("msg", Base64.encodeToString(message, Base64.DEFAULT))
 
-    val url = URL(NETWORK_ENDPOINT)
+    val url = URL(NETWORK_ENDPOINT_SEND)
     val connection = url.openConnection() as HttpURLConnection
     connection.requestMethod = "POST"
     connection.doOutput = true
@@ -94,4 +101,5 @@ fun sendMessage(message: ByteArray, recipient: ByteArray) {
     outputStream.flush()
 
     println(connection.responseCode)
+    println(connection.responseMessage)
 }

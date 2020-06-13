@@ -21,7 +21,7 @@ class MainActivity : Activity() {
     StrictMode.setThreadPolicy(policy)
     setContentView(R.layout.activity_main)
     textView = findViewById(R.id.textView)
-    km = KeyManager(this)
+    km = KeyManager(this.applicationContext)
   }
 
   fun scanBarcode(view: View?) {

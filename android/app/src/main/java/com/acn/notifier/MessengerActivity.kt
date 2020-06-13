@@ -12,6 +12,7 @@ import java.time.LocalDateTime
 
 
 class MessengerActivity : AppCompatActivity() {
+    var km: KeyManager? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -19,10 +20,7 @@ class MessengerActivity : AppCompatActivity() {
 
         val policy = StrictMode.ThreadPolicy.Builder().permitAll().build()
         StrictMode.setThreadPolicy(policy)
-
-        for(message in requestServerMessages().iterator()) {
-            addGUIMessageElement(message.from, message.message, message.footer)
-        }
+        km = KeyManager(this.applicationContext)
     }
 
     fun addGUIMessageElement(from:String, message:String, footer:String) {
@@ -50,6 +48,7 @@ class MessengerActivity : AppCompatActivity() {
 
         messageView.text = "";
 
+        val key = km?.keyAgreement(ByteArray(32))
         pushMessageToServer(MessageElement("Sebastian", message, LocalDateTime.now().toString()))
 
         addGUIMessageElement("Sebastian", message, LocalDateTime.now().toString());

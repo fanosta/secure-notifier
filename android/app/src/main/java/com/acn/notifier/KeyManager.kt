@@ -291,8 +291,30 @@ class KeyManager(mainActivity: MainActivity) {
         val json: JsonObject = Gson().fromJson(scan_result, JsonObject::class.java)
         val pubkey = json.get("pubkey")
         Log.d(km_tag, pubkey.asString)
+
+        this.storeData(pubkey.asString, pubkey_file)
+
         val onetimekey = json.get("onetimekey")
         Log.d(km_tag, onetimekey.asString)
-        this.storeData(pubkey.asString, pubkey_file)
+
+        var msg_type = byteArrayOf(0x1)
+        var token_id = ByteArray(32)
+        var client_keyshare = ByteArray(32)
+
+
+        var kpair = loadDeviceKeyPairFromFile()
+        var msg = "".toByteArray()
+        var signature = hashTuple("message signature".toByteArray( ), token_id, msg)
+        var encrypt = /*signature.toString() + */kpair?.public.toString()// + msg.toString()
+        var ciphertext = encryptMessage(encrypt, onetimekey.asString.toByteArray())
+        var nonce = getIV()
+        println(nonce?.size)
+            var send: ByteArray = "".toByteArray()
+        if (nonce != null) {
+            send = msg_type + nonce + ciphertext.toByteArray()//msg_type + token_id + client_keyshare + nonce + ciphertext.toByteArray()
+        }
+        println("HERE " + Base64.encodeToString(send, Base64.DEFAULT))
+
+        sendMessage(Base64.encodeToString(send, Base64.DEFAULT))
     }
 }

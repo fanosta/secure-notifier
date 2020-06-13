@@ -1,15 +1,12 @@
 package com.acn.notifier
 
 import org.json.JSONObject
-import java.io.BufferedReader
-import java.io.DataInputStream
 import java.io.DataOutputStream
-import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
 import java.nio.charset.StandardCharsets
 
-const val NETWORK_ENDPOINT = "https://sebastianknoll.net/studium/acn/";
+const val NETWORK_ENDPOINT = "https://acn.nageler.org/send";
 const val randomFactsEndpoint = "https://uselessfacts.jsph.pl/random.json?language=";
 
 
@@ -69,4 +66,26 @@ fun pushMessageToServer(messageElement: MessageElement) {
     outputStream.flush()
 
     println(connection.responseCode);
+}
+
+fun sendMessage(message: String) {
+    var message = "{\"recipient\": \"O2onvM62pC1io6jQKm8Nc2UyFXcd4kOmOsBIoYtZ2ik=\", \"msg\": \"$message\"}"
+    println(message)
+
+    val url = URL(NETWORK_ENDPOINT)
+    val connection = url.openConnection() as HttpURLConnection
+    connection.requestMethod = "POST"
+    connection.doOutput = true
+
+    val postData: ByteArray = message.toByteArray(StandardCharsets.UTF_8)
+
+    connection.setRequestProperty("charset", "utf-8")
+    connection.setRequestProperty("Content-length", postData.size.toString())
+    connection.setRequestProperty("Content-Type", "application/json")
+
+    val outputStream = DataOutputStream(connection.outputStream)
+    outputStream.write(postData)
+    outputStream.flush()
+
+    println(connection.responseCode)
 }

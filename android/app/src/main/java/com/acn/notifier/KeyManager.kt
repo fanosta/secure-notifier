@@ -17,6 +17,7 @@ import org.bouncycastle.crypto.params.Ed25519PublicKeyParameters
 import org.bouncycastle.crypto.signers.Ed25519Signer
 import org.bouncycastle.jcajce.provider.digest.SHA3
 import org.bouncycastle.jcajce.provider.digest.SHA3.DigestSHA3
+import org.bouncycastle.jcajce.provider.symmetric.ARC4
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -260,6 +261,16 @@ class KeyManager(mainActivity: MainActivity) {
         return hash.digest()
     }
 
+    fun encryptBytes(data: ByteArray, shared_key: ByteArray): Pair<ByteArray, ByteArray> {
+        val secret_key: SecretKey = SecretKeySpec(shared_key, 0, shared_key.size, "AES")
+        val cipher_instance = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher_instance.init(Cipher.ENCRYPT_MODE, secret_key)
+
+        val encrypted_message = cipher_instance.doFinal(data)
+
+        return Pair(cipher_instance.iv, encrypted_message)
+    }
+
     fun encryptMessage(data: String, shared_key: ByteArray): String {
         val secret_key: SecretKey = SecretKeySpec(shared_key, 0, shared_key.size, "AES")
         val cipher_instance = Cipher.getInstance("AES/GCM/NoPadding")
@@ -289,32 +300,17 @@ class KeyManager(mainActivity: MainActivity) {
         Log.d(km_tag, scan_result)
 
         val json: JsonObject = Gson().fromJson(scan_result, JsonObject::class.java)
-        val pubkey = json.get("pubkey")
-        Log.d(km_tag, pubkey.asString)
+        val pubkey = Base64.decode(json.get("pubkey").asString, Base64.DEFAULT)
 
-        this.storeData(pubkey.asString, pubkey_file)
+        this.storeData(Base64.encodeToString(pubkey, Base64.DEFAULT), pubkey_file)
 
-        val onetimekey = json.get("onetimekey")
-        Log.d(km_tag, onetimekey.asString)
+        val onetimekey = Base64.decode(json.get("onetimekey").asString, Base64.DEFAULT)
 
         var msg_type = byteArrayOf(0x1)
-        var token_id = ByteArray(32)
-        var client_keyshare = ByteArray(32)
+        var mypubkey = getDeviceKeyPair().public as Ed25519PublicKeyParameters
 
+        var (nonce, ciphertext) = encryptBytes(mypubkey.encoded, onetimekey);
 
-        var kpair = loadDeviceKeyPairFromFile()
-        var msg = "".toByteArray()
-        var signature = hashTuple("message signature".toByteArray( ), token_id, msg)
-        var encrypt = /*signature.toString() + */kpair?.public.toString()// + msg.toString()
-        var ciphertext = encryptMessage(encrypt, onetimekey.asString.toByteArray())
-        var nonce = getIV()
-        println(nonce?.size)
-            var send: ByteArray = "".toByteArray()
-        if (nonce != null) {
-            send = msg_type + nonce + ciphertext.toByteArray()//msg_type + token_id + client_keyshare + nonce + ciphertext.toByteArray()
-        }
-        println("HERE " + Base64.encodeToString(send, Base64.DEFAULT))
-
-        sendMessage(Base64.encodeToString(send, Base64.DEFAULT))
+        sendMessage(msg_type + nonce + ciphertext, pubkey);
     }
 }

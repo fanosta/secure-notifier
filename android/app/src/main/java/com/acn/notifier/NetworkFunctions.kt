@@ -1,6 +1,9 @@
 package com.acn.notifier
 
+import android.os.IBinder
+import android.util.Base64
 import com.google.gson.JsonObject
+import org.bouncycastle.jcajce.provider.symmetric.ARC4
 import org.json.JSONObject
 import java.io.DataOutputStream
 import java.net.HttpURLConnection
@@ -70,10 +73,10 @@ fun pushMessageToServer(messageElement: MessageElement) {
     println(connection.responseCode);
 }
 
-fun sendMessage(message: String) {
+fun sendMessage(message: ByteArray, recipient: ByteArray) {
     val json = JsonObject()
-    json.addProperty("recipient", "O2onvM62pC1io6jQKm8Nc2UyFXcd4kOmOsBIoYtZ2ik=")
-    json.addProperty("msg", message)
+    json.addProperty("recipient", Base64.encodeToString(recipient, Base64.DEFAULT))
+    json.addProperty("msg", Base64.encodeToString(message, Base64.DEFAULT))
 
     val url = URL(NETWORK_ENDPOINT)
     val connection = url.openConnection() as HttpURLConnection

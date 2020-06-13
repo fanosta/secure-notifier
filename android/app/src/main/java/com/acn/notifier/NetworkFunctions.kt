@@ -1,10 +1,12 @@
 package com.acn.notifier
 
+import com.google.gson.JsonObject
 import org.json.JSONObject
 import java.io.DataOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.nio.charset.StandardCharsets
+
 
 const val NETWORK_ENDPOINT = "https://acn.nageler.org/send";
 const val randomFactsEndpoint = "https://uselessfacts.jsph.pl/random.json?language=";
@@ -69,15 +71,16 @@ fun pushMessageToServer(messageElement: MessageElement) {
 }
 
 fun sendMessage(message: String) {
-    var message = "{\"recipient\": \"O2onvM62pC1io6jQKm8Nc2UyFXcd4kOmOsBIoYtZ2ik=\", \"msg\": \"$message\"}"
-    println(message)
+    val json = JsonObject()
+    json.addProperty("recipient", "O2onvM62pC1io6jQKm8Nc2UyFXcd4kOmOsBIoYtZ2ik=")
+    json.addProperty("msg", message)
 
     val url = URL(NETWORK_ENDPOINT)
     val connection = url.openConnection() as HttpURLConnection
     connection.requestMethod = "POST"
     connection.doOutput = true
 
-    val postData: ByteArray = message.toByteArray(StandardCharsets.UTF_8)
+    val postData: ByteArray = json.toString().toByteArray()
 
     connection.setRequestProperty("charset", "utf-8")
     connection.setRequestProperty("Content-length", postData.size.toString())

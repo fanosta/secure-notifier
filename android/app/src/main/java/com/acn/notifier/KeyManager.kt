@@ -130,13 +130,12 @@ class KeyManager(appContext: Context) {
         writeToFile(iv, encrypted_data, file)
     }
 
-    fun loadData(file: File?): String {
+    fun loadData(file: File?): String? {
         Log.d(km_tag, "loadData")
         val (iv, encrypted_data) = readFromFile(file)
-        if (encrypted_data != null)
-            return decryptData(iv, encrypted_data)
-        else
-            return "empty file"
+
+        if (encrypted_data != null) return decryptData(iv, encrypted_data)
+        return null
     }
 
     private fun generateED25519KeyPair() : AsymmetricCipherKeyPair {
@@ -150,17 +149,16 @@ class KeyManager(appContext: Context) {
     }
 
     private fun loadDeviceKeyPairFromFile() : AsymmetricCipherKeyPair? {
-        var keyPair: AsymmetricCipherKeyPair? = null
-
         try {
-            val privateKeyParameters = Gson().fromJson(loadData(device_prkey_file), Ed25519PrivateKeyParameters::class.java)
+            val fileData = loadData(device_prkey_file) ?: return null
+            val privateKeyParameters = Gson().fromJson(fileData, Ed25519PrivateKeyParameters::class.java)
             device_kp = AsymmetricCipherKeyPair(privateKeyParameters.generatePublicKey(), privateKeyParameters)
         }
         catch (exception : Exception) {
             Log.d("DeviceKeyPair", "Unable to load existing KeyPair from file due to: ${exception.message}")
         }
 
-        return keyPair
+        return null
     }
 
     private fun storeDeviceKeyPairToFile() {
@@ -270,7 +268,7 @@ class KeyManager(appContext: Context) {
         val json: JsonObject = Gson().fromJson(scan_result, JsonObject::class.java)
         val pubkey = Base64.decode(json.get("pubkey").asString, Base64.DEFAULT)
 
-        this.storeData(Base64.encodeToString(pubkey, Base64.DEFAULT), pubkey_file)
+        this.storeData(Base64.encodeToString(pubkey, Base64.NO_WRAP), pubkey_file)
 
         val onetimekey = Base64.decode(json.get("onetimekey").asString, Base64.DEFAULT)
 
@@ -280,5 +278,9 @@ class KeyManager(appContext: Context) {
         var (nonce, ciphertext) = encryptBytes(mypubkey.encoded, onetimekey);
 
         sendMessage(msg_type + nonce + ciphertext, pubkey);
+    }
+
+    fun getRecipientPublicKey() : ByteArray? {
+        return loadData(pubkey_file)?.toByteArray()
     }
 }

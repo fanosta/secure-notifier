@@ -62,11 +62,7 @@ class MainActivity : Activity() {
     startActivity(Intent(this, MessengerActivity::class.java))
   }
 
-  override fun onActivityResult(
-    requestCode: Int,
-    resultCode: Int,
-    data: Intent
-  ) {
+  override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
     super.onActivityResult(requestCode, resultCode, data)
     if (requestCode == 0) {
       if (resultCode == CommonStatusCodes.SUCCESS) {

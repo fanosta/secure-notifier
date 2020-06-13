@@ -17,7 +17,6 @@ import org.bouncycastle.crypto.params.Ed25519PublicKeyParameters
 import org.bouncycastle.crypto.signers.Ed25519Signer
 import org.bouncycastle.jcajce.provider.digest.SHA3
 import org.bouncycastle.jcajce.provider.digest.SHA3.DigestSHA3
-import org.bouncycastle.jcajce.provider.symmetric.ARC4
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -38,7 +37,6 @@ class KeyManager(mainActivity: MainActivity) {
     val ks: KeyStore
     var pubkey_file: File? = null
     var device_prkey_file: File? = null
-    var iv: ByteArray? = null
     var device_kp: AsymmetricCipherKeyPair? = null
 
     init {
@@ -71,23 +69,18 @@ class KeyManager(mainActivity: MainActivity) {
         }
     }
 
-    fun getIV(): ByteArray? {
-        return iv
-    }
-
-    private fun encryptData(data: String): String {
+    private fun encryptData(data: String): Pair<ByteArray, String> {
         val secret_key = ks.getKey(key_name, null) as SecretKey
         val cipher_instance = Cipher.getInstance("AES/GCM/NoPadding")
         cipher_instance.init(Cipher.ENCRYPT_MODE, secret_key)
-        iv = cipher_instance.getIV()
 
         val encrypted_data = cipher_instance.doFinal(data.toByteArray())
         val encoded_data = Base64.encodeToString(encrypted_data, Base64.DEFAULT)
 
-        return encoded_data
+        return  Pair(cipher_instance.iv, encoded_data)
     }
 
-    private fun decryptData(data: String): String {
+    private fun decryptData(iv: ByteArray, data: String): String {
         val decoded_data = Base64.decode(data, Base64.DEFAULT)
 
         val secret_key = ks.getKey(key_name, null) as SecretKey
@@ -100,7 +93,7 @@ class KeyManager(mainActivity: MainActivity) {
         return String(decrypted_data, Charsets.UTF_8)
     }
 
-    private fun writeToFile(encrypted_data: String, file: File?) {
+    private fun writeToFile(iv: ByteArray, encrypted_data: String, file: File?) {
         val enc_iv = Base64.encodeToString(iv, Base64.DEFAULT)
         val write_to_file = enc_iv.plus(encrypted_data)
 
@@ -109,7 +102,7 @@ class KeyManager(mainActivity: MainActivity) {
         }
     }
 
-    private fun readFromFile(file: File?): String? {
+    private fun readFromFile(file: File?): Pair<ByteArray, String> {
         var read_from_file: String? = null
         try {
              read_from_file = FileInputStream(file).bufferedReader().use {
@@ -121,24 +114,24 @@ class KeyManager(mainActivity: MainActivity) {
         }
         if (read_from_file != null) {
             val split = read_from_file.split('\n', limit = 2)
-            iv = Base64.decode(split.get(0).toByteArray(), Base64.DEFAULT)
+            val iv = Base64.decode(split.get(0).toByteArray(), Base64.DEFAULT)
             Log.d(km_tag, split.get(1))
-            return split.get(1)
+            return Pair(iv, split.get(1))
         }
-        return null
+        return Pair(ByteArray(0), String())
     }
 
     fun storeData(data: String, file: File?) {
         Log.d(km_tag, "storeData")
-        val encrypted_data = encryptData(data)
-        writeToFile(encrypted_data, file)
+        val (iv, encrypted_data) = encryptData(data)
+        writeToFile(iv, encrypted_data, file)
     }
 
     fun loadData(file: File?): String {
         Log.d(km_tag, "loadData")
-        val encrypted_data = readFromFile(file)
+        val (iv, encrypted_data) = readFromFile(file)
         if (encrypted_data != null)
-            return decryptData(encrypted_data)
+            return decryptData(iv, encrypted_data)
         else
             return "empty file"
     }
@@ -269,31 +262,6 @@ class KeyManager(mainActivity: MainActivity) {
         val encrypted_message = cipher_instance.doFinal(data)
 
         return Pair(cipher_instance.iv, encrypted_message)
-    }
-
-    fun encryptMessage(data: String, shared_key: ByteArray): String {
-        val secret_key: SecretKey = SecretKeySpec(shared_key, 0, shared_key.size, "AES")
-        val cipher_instance = Cipher.getInstance("AES/GCM/NoPadding")
-        cipher_instance.init(Cipher.ENCRYPT_MODE, secret_key)
-        iv = cipher_instance.getIV()
-
-        val encrypted_message = cipher_instance.doFinal(data.toByteArray())
-        val encoded_message = Base64.encodeToString(encrypted_message, Base64.DEFAULT)
-
-        return encoded_message
-    }
-
-    fun decryptMessage(data: String, shared_key: ByteArray): String {
-        val decoded_message = Base64.decode(data, Base64.DEFAULT)
-
-        val secret_key: SecretKey = SecretKeySpec(shared_key, 0, shared_key.size, "AES")
-        val cipher_instance = Cipher.getInstance("AES/GCM/NoPadding")
-        val spec = GCMParameterSpec(128, iv)
-        cipher_instance.init(Cipher.DECRYPT_MODE, secret_key, spec)
-
-        val decrypted_message = cipher_instance.doFinal(decoded_message)
-
-        return String(decrypted_message, Charsets.UTF_8)
     }
 
     fun publicKeyExchange(scan_result: String?) {

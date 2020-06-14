@@ -96,7 +96,7 @@ class MessengerActivity : AppCompatActivity() {
         val plaintext: ByteArray = signature + publickey.encoded + message.toByteArray()
         val (nonce, ciphertext) = km!!.encryptBytes(plaintext, key)
 
-        sendEncryptedMessage(msg_type + sender_keyshare + nonce + ciphertext, recipientPublicKey)
+        sendEncryptedMessage(msg_type + token_id + sender_keyshare + nonce + ciphertext, recipientPublicKey)
 
         addGUIMessageElement("System", message, "Transferred to Server: ${LocalDateTime.now()}");
 

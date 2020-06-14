@@ -38,7 +38,7 @@ fun requestRandomFact(languageString:String = "en"):String {
 
 fun getSenderToken(recipient: ByteArray): SenderToken? {
 
-    val recipientEncoded = Base64.encodeToString(recipient, Base64.NO_WRAP)
+    val recipientEncoded = Base64.encodeToString(recipient, Base64.URL_SAFE)
     val url = URL("$NETWORK_ENDPOINT_GETTOKEN/$recipientEncoded")
     val connection = url.openConnection() as HttpURLConnection
     connection.requestMethod = "GET"

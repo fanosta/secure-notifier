@@ -47,15 +47,14 @@ class MessengerActivity : AppCompatActivity() {
         var message = messageView.text.toString();
 
         if(message.length <= 0) return;
-
         messageView.text = "";
 
-        val recipientPublicKey = km?.loadData(km?.pubkey_file)
-        println(recipientPublicKey)
+        val recipientPublicKey = km?.getRecipientPublicKey()
+        println(Base64.encodeToString(recipientPublicKey, Base64.DEFAULT))
 
         if (recipientPublicKey != null && km != null) {
 
-            val (key, sender_keyshare, token) = km!!.keyAgreement(Base64.decode(recipientPublicKey, Base64.DEFAULT))
+            val (key, sender_keyshare, token) = km!!.keyAgreement(recipientPublicKey)
 
             println(Base64.encodeToString(key, Base64.DEFAULT))
             println(token)
@@ -72,16 +71,20 @@ class MessengerActivity : AppCompatActivity() {
             var msg_type = byteArrayOf(0x2)
             var token_id = token?.Id
             var recipient = km!!.getRecipientPublicKey()
+
             if (token_id != null && sender_keyshare != null && recipient != null) {
                 val hash = km!!.hashTuple(
                     ("message signature").toByteArray(),
                     token_id,
                     message.toByteArray()
                 )
+
                 val publickey = km!!.getDeviceKeyPair().public as Ed25519PublicKeyParameters
-                val signature = km!!.sign(hash.toString())
+                val signature = km!!.signBytes(hash)
+
                 val plaintext: ByteArray = signature + publickey.encoded + message.toByteArray()
                 var (nonce, ciphertext) = km!!.encryptBytes(plaintext, key)
+
                 sendEncryptedMessage(msg_type + sender_keyshare + nonce + ciphertext, recipient)
             } else {
 

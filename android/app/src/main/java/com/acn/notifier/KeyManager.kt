@@ -150,7 +150,7 @@ class KeyManager(appContext: Context) {
         try {
             val fileData = loadData(device_prkey_file) ?: return null
             val privateKeyParameters = Gson().fromJson(fileData, Ed25519PrivateKeyParameters::class.java)
-            device_kp = AsymmetricCipherKeyPair(privateKeyParameters.generatePublicKey(), privateKeyParameters)
+            return AsymmetricCipherKeyPair(privateKeyParameters.generatePublicKey(), privateKeyParameters)
         }
         catch (exception : Exception) {
             Log.d("DeviceKeyPair", "Unable to load existing KeyPair from file due to: ${exception.message}")
@@ -177,14 +177,17 @@ class KeyManager(appContext: Context) {
         return device_kp!!
     }
 
-    fun sign(message : String) : ByteArray {
-        val messageBytes = message.toByteArray()
-
+    fun signBytes(messageBytes : ByteArray) : ByteArray {
         val signer = Ed25519Signer()
         signer.init(true, getDeviceKeyPair().private as Ed25519PrivateKeyParameters)
         signer.update(messageBytes, 0, messageBytes.size)
 
         return signer.generateSignature()
+    }
+
+    fun sign(message : String) : ByteArray {
+        val messageBytes = message.toByteArray()
+        return signBytes(messageBytes)
     }
 
     fun verifySign(message: String, signature: ByteArray) : Boolean {

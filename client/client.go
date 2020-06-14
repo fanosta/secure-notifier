@@ -18,6 +18,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strings"
 
 	"github.com/gorilla/websocket"
 	"golang.org/x/crypto/curve25519"
@@ -91,7 +92,6 @@ func topUpTokens(tokens *[]PrivateSenderToken, privkey ed25519.PrivateKey, conn 
 	if len(*tokens) < mintokens {
 		diff := mintokens - len(*tokens)
 
-		log.Printf("generating %d new tokens\n", diff)
 		newtokens, err := generateTokens(diff, privkey)
 
 		if err != nil {
@@ -175,7 +175,7 @@ func pair(pubkey ed25519.PublicKey, init_channel chan []byte, new_peer_chan chan
 		return errors.New("reading name failed")
 	}
 
-	peer := Peer{Publickey: plaintext, Name: name}
+	peer := Peer{Publickey: plaintext, Name: strings.TrimSpace(name)}
 	new_peer_chan <- peer
 
 	return nil
@@ -197,8 +197,6 @@ func decrypt_message(raw_message []byte, senderTokens *[]PrivateSenderToken) (*D
 	if err != nil {
 		return nil, err
 	}
-
-	fmt.Printf("Shared key: %s\n", base64.StdEncoding.EncodeToString(shared_key))
 
 	block_cipher, err := aes.NewCipher(shared_key)
 	if err != nil {
@@ -343,7 +341,7 @@ func main() {
 	for {
 		select {
 		case peer := <-new_peer_chan:
-			fmt.Printf("adding new peer: %s\n", base64.StdEncoding.EncodeToString(peer.Publickey))
+			fmt.Printf("adding new peer: %s:%s\n", peer.Name, base64.StdEncoding.EncodeToString(peer.Publickey))
 			peers = append(peers, peer)
 			err = savePeers(peerspath, peers)
 			if (err != nil) {
@@ -375,7 +373,7 @@ func main() {
 			}
 
 			if decrypted_msg != nil {
-				fmt.Printf("%s: %s", decrypted_msg.SenderName, decrypted_msg.Message)
+				fmt.Printf("%s: %s\n", decrypted_msg.SenderName, decrypted_msg.Message)
 				cmd := exec.Command("notify-send",
 									decrypted_msg.SenderName,
 									decrypted_msg.Message)

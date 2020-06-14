@@ -265,7 +265,7 @@ func main() {
 		log.Fatal("loadKey failed: ", err)
 	}
 
-	peers, err := loadPeers(peerspath)
+	peers, err = loadPeers(peerspath)
 	if os.IsNotExist(err) {
 		peers = []Peer{}
 	} else if err != nil {
@@ -343,6 +343,7 @@ func main() {
 	for {
 		select {
 		case peer := <-new_peer_chan:
+			fmt.Printf("adding new peer: %s\n", base64.StdEncoding.EncodeToString(peer.Publickey))
 			peers = append(peers, peer)
 			err = savePeers(peerspath, peers)
 			if (err != nil) {
@@ -374,7 +375,7 @@ func main() {
 			}
 
 			if decrypted_msg != nil {
-				fmt.Println(*decrypted_msg)
+				fmt.Printf("%s: %s", decrypted_msg.SenderName, decrypted_msg.Message)
 				cmd := exec.Command("notify-send",
 									decrypted_msg.SenderName,
 									decrypted_msg.Message)

@@ -190,16 +190,6 @@ class KeyManager(appContext: Context) {
         return signBytes(messageBytes)
     }
 
-    fun verifySign(message: String, signature: ByteArray) : Boolean {
-        val messageBytes = message.toByteArray()
-
-        val verifier = Ed25519Signer()
-        verifier.init(false, getDeviceKeyPair().public as Ed25519PublicKeyParameters)
-        verifier.update(messageBytes, 0, messageBytes.size)
-
-        return verifier.verifySignature(signature)
-    }
-
 
     private fun generateX25519KeyPair(): AsymmetricCipherKeyPair {
         val key_pair_generator = X25519KeyPairGenerator()
@@ -222,27 +212,6 @@ class KeyManager(appContext: Context) {
         return shared_key
     }
 
-    fun keyAgreement(recipientPublicKey: ByteArray): Triple<ByteArray, ByteArray, SenderToken>? {
-        // get token id + public key
-        val token = getSenderToken(recipientPublicKey) ?: return null
-
-        val hash = hashTuple(("sender token").toByteArray(), token.Id, token.PublicPoint)
-        // FIXME: verify signature
-        val res = verifySign(hash.toString(), token.Signature)
-        println(res)
-
-        val server_public_key = X25519PublicKeyParameters(ByteArrayInputStream(token.PublicPoint))
-
-        val key_pair: AsymmetricCipherKeyPair = generateX25519KeyPair()
-        // send client_public_key to server
-        val client_public_key: AsymmetricKeyParameter = key_pair.getPublic()
-        val client_private_key: AsymmetricKeyParameter = key_pair.getPrivate()
-        // encrypt message with shared key
-        val shared_key = getSharedSecret(server_public_key, client_private_key)
-
-        return Triple(shared_key, client_public_key.toString().toByteArray(), token)
-    }
-
     fun hashTuple(vararg messages: ByteArray): ByteArray
     {
         val hash: DigestSHA3 = SHA3.Digest256()
@@ -255,6 +224,42 @@ class KeyManager(appContext: Context) {
             hash.update(msg)
         }
         return hash.digest()
+    }
+
+    fun keyAgreement(recipientPublicKey: ByteArray): Triple<ByteArray, ByteArray, SenderToken>? {
+        // get token id + public key
+        val token = getSenderToken(recipientPublicKey) ?: return null
+
+        val hash = hashTuple(("sender token").toByteArray(), token.Id, token.PublicPoint)
+        // FIXME: verify signature
+
+        val verifier = Ed25519Signer()
+        verifier.init(false, Ed25519PublicKeyParameters(ByteArrayInputStream(recipientPublicKey)))
+        verifier.update(hash, 0, hash.size)
+
+        val valid_signature = verifier.verifySignature(token.Signature)
+
+        if (!valid_signature)
+            return null
+
+        //println("================")
+        //println("token id: ${Base64.encodeToString(token.Id, Base64.NO_WRAP)}")
+        //println("public point: ${Base64.encodeToString(token.PublicPoint, Base64.NO_WRAP)}")
+        //println("signature: ${Base64.encodeToString(token.Signature, Base64.NO_WRAP)}")
+        //println("================")
+
+        val server_public_key = X25519PublicKeyParameters(ByteArrayInputStream(token.PublicPoint))
+
+        val key_pair: AsymmetricCipherKeyPair = generateX25519KeyPair()
+        // send client_public_key to server
+        val client_public_key: AsymmetricKeyParameter = key_pair.getPublic()
+        val client_private_key: AsymmetricKeyParameter = key_pair.getPrivate()
+        // encrypt message with shared key
+        val shared_key = getSharedSecret(server_public_key, client_private_key)
+
+        val myPublicPoint = (client_public_key as X25519PublicKeyParameters).encoded
+
+        return Triple(shared_key, myPublicPoint, token)
     }
 
     fun encryptBytes(data: ByteArray, shared_key: ByteArray): Pair<ByteArray, ByteArray> {

@@ -163,7 +163,7 @@ func writePump(conn *websocket.Conn, pubkey ed25519.PublicKey) {
 	channels[pubkeyArr] = channel
 	channelsMut.Unlock()
 
-	cleanup := func() {
+	defer func() {
 		channelsMut.Lock()
 		close(channel)
 		delete(channels, pubkeyArr)
@@ -172,8 +172,7 @@ func writePump(conn *websocket.Conn, pubkey ed25519.PublicKey) {
 		for msg := range channel {
 			queueMessage(pubkeyArr, msg)
 		}
-	}
-	defer cleanup()
+	}()
 
 	messagesMut.Lock()
 	var newQueue [][]byte = nil

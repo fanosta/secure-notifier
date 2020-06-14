@@ -103,7 +103,7 @@ class KeyManager(appContext: Context) {
         }
     }
 
-    private fun readFromFile(file: File?): Pair<ByteArray, String> {
+    private fun readFromFile(file: File?): Pair<ByteArray?, String?> {
         var read_from_file: String? = null
         try {
              read_from_file = FileInputStream(file).bufferedReader().use {
@@ -119,7 +119,7 @@ class KeyManager(appContext: Context) {
             Log.d(km_tag, split.get(1))
             return Pair(iv, split.get(1))
         }
-        return Pair(ByteArray(0), String())
+        return Pair(null, null)
     }
 
     fun storeData(data: String, file: File?) {
@@ -132,7 +132,7 @@ class KeyManager(appContext: Context) {
         Log.d(km_tag, "loadData")
         val (iv, encrypted_data) = readFromFile(file)
 
-        if (encrypted_data != null) return decryptData(iv, encrypted_data)
+        if (iv != null && encrypted_data != null) return decryptData(iv, encrypted_data)
         return null
     }
 
@@ -291,7 +291,11 @@ class KeyManager(appContext: Context) {
     }
 
     fun getRecipientPublicKey() : ByteArray? {
-        return Base64.decode(loadData(pubkey_file)?.toByteArray(), Base64.DEFAULT)
+        val data = loadData(pubkey_file)
+        if (data != null)
+            return Base64.decode(data.toByteArray(), Base64.DEFAULT)
+        else
+            return null
     }
 
 }

@@ -198,6 +198,8 @@ func decrypt_message(raw_message []byte, senderTokens *[]PrivateSenderToken) (*D
 		return nil, err
 	}
 
+	fmt.Printf("Shared key: %s\n", base64.StdEncoding.EncodeToString(shared_key))
+
 	block_cipher, err := aes.NewCipher(shared_key)
 	if err != nil {
 		panic(err.Error())

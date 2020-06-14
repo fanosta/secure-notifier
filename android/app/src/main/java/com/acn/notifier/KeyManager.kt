@@ -222,12 +222,9 @@ class KeyManager(appContext: Context) {
         return shared_key
     }
 
-    fun keyAgreement(recipientPublicKey: ByteArray): Triple<ByteArray, ByteArray, SenderToken> {
+    fun keyAgreement(recipientPublicKey: ByteArray): Triple<ByteArray, ByteArray, SenderToken>? {
         // get token id + public key
-        val token = getSenderToken(recipientPublicKey)
-
-        println(Base64.encodeToString(token.PublicPoint, Base64.DEFAULT))
-        println(Base64.encodeToString(token.Id, Base64.DEFAULT))
+        val token = getSenderToken(recipientPublicKey) ?: return null
 
         val hash = hashTuple(("sender token").toByteArray(), token.Id, token.PublicPoint)
         // FIXME: verify signature

@@ -7,8 +7,10 @@ import android.view.LayoutInflater
 import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import org.bouncycastle.crypto.params.Ed25519PublicKeyParameters
+import java.time.LocalDateTime
 
 
 class MessengerActivity : AppCompatActivity() {
@@ -41,60 +43,62 @@ class MessengerActivity : AppCompatActivity() {
     }
 
     fun sendMessage(view : View?) {
+
         var messageView = findViewById<TextView>(R.id.textNewMessage)
         var message = messageView.text.toString();
 
         if(message.length <= 0) return;
         messageView.text = "";
 
-        val recipientPublicKey = km?.getRecipientPublicKey()
-        println(Base64.encodeToString(recipientPublicKey, Base64.DEFAULT))
-
-        if (recipientPublicKey != null && km != null) {
-
-            val (key, sender_keyshare, token) = km!!.keyAgreement(recipientPublicKey)
-
-            println(Base64.encodeToString(key, Base64.DEFAULT))
-            println(token)
-            /*
-              token_id := raw_message[0:32]
-              sender_keyshare := raw_message[32:64]
-              nonce := raw_message[64:88]
-              ciphertext := raw_message[88:]
-
-              signature := plaintext[:64]
-              publickey := plaintext[64:96]
-              msg := plaintext[96:]
-             */
-            var msg_type = byteArrayOf(0x2)
-            var token_id = token?.Id
-            var recipient = km!!.getRecipientPublicKey()
-
-            if (token_id != null && sender_keyshare != null && recipient != null) {
-                val hash = km!!.hashTuple(
-                    ("message signature").toByteArray(),
-                    token_id,
-                    message.toByteArray()
-                )
-
-                val publickey = km!!.getDeviceKeyPair().public as Ed25519PublicKeyParameters
-                val signature = km!!.signBytes(hash)
-
-                val plaintext: ByteArray = signature + publickey.encoded + message.toByteArray()
-                var (nonce, ciphertext) = km!!.encryptBytes(plaintext, key)
-
-                sendEncryptedMessage(msg_type + sender_keyshare + nonce + ciphertext, recipient)
-            } else {
-
-            }
-
-        } else {
-
+        if(km == null) {
+            showToastMessage(applicationContext, "Some internal KM problems :/")
+            return
         }
 
-        //pushMessageToServer(MessageElement("Sebastian", message, LocalDateTime.now().toString()))
+        val recipientPublicKey = km!!.getRecipientPublicKey()
+        if(recipientPublicKey == null) {
+            showToastMessage(applicationContext, "We forgot the recipient 0.o")
+            return
+        }
 
-        //addGUIMessageElement("Sebastian", message, LocalDateTime.now().toString());
+        val tripleResult = km!!.keyAgreement(recipientPublicKey)
+        if(tripleResult == null) {
+            showToastMessage(applicationContext, "we r unable to reach an agreement :|")
+            return
+        }
+
+        val (key, sender_keyshare, token) = tripleResult
+
+        println(Base64.encodeToString(key, Base64.DEFAULT))
+        println(token)
+        /*
+          token_id := raw_message[0:32]
+          sender_keyshare := raw_message[32:64]
+          nonce := raw_message[64:88]
+          ciphertext := raw_message[88:]
+
+          signature := plaintext[:64]
+          publickey := plaintext[64:96]
+          msg := plaintext[96:]
+         */
+        val msg_type = byteArrayOf(0x2)
+        val token_id = token.Id
+
+        val hash = km!!.hashTuple(
+            ("message signature").toByteArray(),
+            token_id,
+            message.toByteArray()
+        )
+
+        val publickey = km!!.getDeviceKeyPair().public as Ed25519PublicKeyParameters
+        val signature = km!!.signBytes(hash)
+
+        val plaintext: ByteArray = signature + publickey.encoded + message.toByteArray()
+        val (nonce, ciphertext) = km!!.encryptBytes(plaintext, key)
+
+        sendEncryptedMessage(msg_type + sender_keyshare + nonce + ciphertext, recipientPublicKey)
+
+        addGUIMessageElement("System", message, "Transferred to Server: ${LocalDateTime.now()}");
 
     }
 }

@@ -130,11 +130,10 @@ func pair(pubkey ed25519.PublicKey, init_channel chan []byte, new_peer_chan chan
 
 	qrCode.PublicKey = pubkey
 
-	marshalled, err := json.MarshalIndent(qrCode, "", "  ")
+	marshalled, err := json.Marshal(qrCode)
 	if err != nil {
 		return err
 	}
-
 
 	cmd := exec.Command("qrencode", "-tansi", string(marshalled))
 	output, err := cmd.Output()

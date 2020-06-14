@@ -3,12 +3,10 @@ package com.acn.notifier
 import android.os.Bundle
 import android.os.StrictMode
 import android.util.Base64
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import org.bouncycastle.crypto.params.Ed25519PublicKeyParameters
 import java.time.LocalDateTime
@@ -69,10 +67,6 @@ class MessengerActivity : AppCompatActivity() {
         }
 
         val (key, sender_keyshare, token) = tripleResult
-        //val keyb64 = Base64.encodeToString(key, Base64.DEFAULT)
-        //Log.d("msg" , "+++++++++++++++++++++++++++++++++++++++++")
-        //Log.d("msg", "key base64 $keyb64")
-
         println(Base64.encodeToString(key, Base64.DEFAULT))
         println(token)
         /*
@@ -97,19 +91,11 @@ class MessengerActivity : AppCompatActivity() {
         val publickey = km!!.getDeviceKeyPair().public as Ed25519PublicKeyParameters
         val signature = km!!.signBytes(hash)
 
-
         val plaintext: ByteArray = signature + publickey.encoded + message.toByteArray()
         val (nonce, ciphertext) = km!!.encryptBytes(plaintext, key)
 
-        //println("####################")
-        //println("token_id: ${Base64.encodeToString(token_id, Base64.NO_WRAP)}")
-        //println("my keshare: ${Base64.encodeToString(sender_keyshare, Base64.NO_WRAP)}")
-        //println("nonce: ${Base64.encodeToString(nonce, Base64.NO_WRAP)}")
-        //println("####################")
-
         sendEncryptedMessage(msg_type + token_id + sender_keyshare + nonce + ciphertext, recipientPublicKey)
 
-        addGUIMessageElement("System", message, "Transferred to Server: ${LocalDateTime.now()}");
-
+        addGUIMessageElement("System", message, "Transferred to Server: ${LocalDateTime.now()}")
     }
 }

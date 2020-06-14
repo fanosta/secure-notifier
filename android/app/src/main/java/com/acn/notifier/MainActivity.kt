@@ -1,9 +1,7 @@
 package com.acn.notifier
 
 import android.app.Activity
-import android.content.Context
 import android.content.Intent
-import android.opengl.Visibility
 import android.os.Bundle
 import android.os.StrictMode
 import android.util.Base64

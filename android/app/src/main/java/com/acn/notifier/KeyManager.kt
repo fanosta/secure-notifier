@@ -17,11 +17,12 @@ import org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters
 import org.bouncycastle.crypto.params.Ed25519PublicKeyParameters
 import org.bouncycastle.crypto.params.X25519PublicKeyParameters
 import org.bouncycastle.crypto.signers.Ed25519Signer
-import org.bouncycastle.crypto.util.PublicKeyFactory
 import org.bouncycastle.jcajce.provider.digest.SHA3
 import org.bouncycastle.jcajce.provider.digest.SHA3.DigestSHA3
-import org.bouncycastle.openssl.PEMParser
-import java.io.*
+import java.io.ByteArrayInputStream
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.security.KeyStore
@@ -185,12 +186,6 @@ class KeyManager(appContext: Context) {
         return signer.generateSignature()
     }
 
-    fun sign(message : String) : ByteArray {
-        val messageBytes = message.toByteArray()
-        return signBytes(messageBytes)
-    }
-
-
     private fun generateX25519KeyPair(): AsymmetricCipherKeyPair {
         val key_pair_generator = X25519KeyPairGenerator()
         val secure_random = SecureRandom()
@@ -231,7 +226,6 @@ class KeyManager(appContext: Context) {
         val token = getSenderToken(recipientPublicKey) ?: return null
 
         val hash = hashTuple(("sender token").toByteArray(), token.Id, token.PublicPoint)
-        // FIXME: verify signature
 
         val verifier = Ed25519Signer()
         verifier.init(false, Ed25519PublicKeyParameters(ByteArrayInputStream(recipientPublicKey)))
@@ -241,12 +235,6 @@ class KeyManager(appContext: Context) {
 
         if (!valid_signature)
             return null
-
-        //println("================")
-        //println("token id: ${Base64.encodeToString(token.Id, Base64.NO_WRAP)}")
-        //println("public point: ${Base64.encodeToString(token.PublicPoint, Base64.NO_WRAP)}")
-        //println("signature: ${Base64.encodeToString(token.Signature, Base64.NO_WRAP)}")
-        //println("================")
 
         val server_public_key = X25519PublicKeyParameters(ByteArrayInputStream(token.PublicPoint))
 
@@ -282,10 +270,10 @@ class KeyManager(appContext: Context) {
 
         val onetimekey = Base64.decode(json.get("onetimekey").asString, Base64.DEFAULT)
 
-        var msg_type = byteArrayOf(0x1)
-        var mypubkey = getDeviceKeyPair().public as Ed25519PublicKeyParameters
+        val msg_type = byteArrayOf(0x1)
+        val mypubkey = getDeviceKeyPair().public as Ed25519PublicKeyParameters
 
-        var (nonce, ciphertext) = encryptBytes(mypubkey.encoded, onetimekey);
+        val (nonce, ciphertext) = encryptBytes(mypubkey.encoded, onetimekey);
 
         sendEncryptedMessage(msg_type + nonce + ciphertext, pubkey);
     }

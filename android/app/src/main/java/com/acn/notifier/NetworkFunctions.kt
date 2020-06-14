@@ -36,8 +36,8 @@ fun requestRandomFact(languageString:String = "en"):String {
 }
 
 fun getSenderToken(recipient: ByteArray): SenderToken {
-    val url = URL(NETWORK_ENDPOINT_GETTOKEN  + "/" + Base64.encodeToString(recipient, Base64.NO_WRAP))
-    println(url)
+    val recipientEncoded = Base64.encodeToString(recipient, Base64.NO_WRAP)
+    val url = URL("$NETWORK_ENDPOINT_GETTOKEN/$recipientEncoded")
     val connection = url.openConnection() as HttpURLConnection
     connection.requestMethod = "GET"
     connection.doInput = true
@@ -47,20 +47,17 @@ fun getSenderToken(recipient: ByteArray): SenderToken {
         // TODO: proper error handling
         throw NetworkErrorException("got error while requesting sender token")
     }
+
     val stream = InputStreamReader(connection.inputStream)
-    val tmp: String = BufferedReader(stream).lines().collect(Collectors.joining("\n"))
-    println(tmp)
-    val result = Gson().fromJson(tmp, JsonObject::class.java)
-    println(result)
+    val jsonString: String = BufferedReader(stream).lines().collect(Collectors.joining("\n"))
+    val result = Gson().fromJson(jsonString, JsonObject::class.java)
 
     var sender_token: SenderToken = SenderToken(
         Base64.decode(result.get("sender_token_id").asString, Base64.NO_WRAP),
         Base64.decode(result.get("public_point").asString, Base64.NO_WRAP),
         Base64.decode(result.get("signature").asString, Base64.NO_WRAP))
 
-    println(sender_token)
     return sender_token
-
 }
 
 fun pushMessageToServer(messageElement: MessageElement) {

@@ -5,12 +5,10 @@ import android.os.StrictMode
 import android.util.Base64
 import android.view.LayoutInflater
 import android.view.View
-import android.widget.DatePicker
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import org.bouncycastle.crypto.params.Ed25519PublicKeyParameters
-import java.time.LocalDateTime
 
 
 class MessengerActivity : AppCompatActivity() {

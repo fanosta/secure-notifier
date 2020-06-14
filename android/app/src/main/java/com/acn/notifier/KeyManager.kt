@@ -224,8 +224,8 @@ class KeyManager(appContext: Context) {
 
     fun keyAgreement(recipientPublicKey: ByteArray): Triple<ByteArray, ByteArray, SenderToken> {
         // get token id + public key
-
         val token = getSenderToken(recipientPublicKey)
+
         println(Base64.encodeToString(token.PublicPoint, Base64.DEFAULT))
         println(Base64.encodeToString(token.Id, Base64.DEFAULT))
 
@@ -276,7 +276,7 @@ class KeyManager(appContext: Context) {
         val json: JsonObject = Gson().fromJson(scan_result, JsonObject::class.java)
         val pubkey = Base64.decode(json.get("pubkey").asString, Base64.DEFAULT)
 
-        this.storeData(Base64.encodeToString(pubkey, Base64.NO_WRAP), pubkey_file)
+        this.storeData(Base64.encodeToString(pubkey, Base64.DEFAULT), pubkey_file)
 
         val onetimekey = Base64.decode(json.get("onetimekey").asString, Base64.DEFAULT)
 
@@ -289,6 +289,7 @@ class KeyManager(appContext: Context) {
     }
 
     fun getRecipientPublicKey() : ByteArray? {
-        return loadData(pubkey_file)?.toByteArray()
+        return Base64.decode(loadData(pubkey_file)?.toByteArray(), Base64.DEFAULT)
     }
+
 }

@@ -42,6 +42,11 @@ func generateAndSaveKey(filePath string) (ed25519.PrivateKey, error) {
 	var keyStruct KeyStruct
 	keyStruct.PrivateKey = make([]byte, ed25519.SeedSize)
 
+	_, err := rand.Read(keyStruct.PrivateKey)
+	if err != nil {
+		return nil, err
+	}
+
 
 	marshalled, err := json.MarshalIndent(keyStruct, "", "  ")
 

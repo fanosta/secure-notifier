@@ -2,19 +2,16 @@ package com.acn.notifier
 
 import android.accounts.NetworkErrorException
 import android.util.Base64
-import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.JsonObject
-import org.bouncycastle.crypto.params.AsymmetricKeyParameter
-import org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters
 import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.DataOutputStream
 import java.io.InputStreamReader
-import java.io.Reader
 import java.net.HttpURLConnection
 import java.net.URL
 import java.nio.charset.StandardCharsets
+import java.util.stream.Collectors
 
 
 const val NETWORK_ENDPOINT_SEND = "https://acn.nageler.org/send";
@@ -40,21 +37,29 @@ fun requestRandomFact(languageString:String = "en"):String {
 
 fun getSenderToken(recipient: ByteArray): SenderToken {
     val url = URL(NETWORK_ENDPOINT_GETTOKEN  + "/" + Base64.encodeToString(recipient, Base64.DEFAULT))
-
+    println(url)
     val connection = url.openConnection() as HttpURLConnection
     connection.requestMethod = "GET"
     connection.doInput = true
 
+    println(connection.responseCode)
     if (connection.responseCode >= 400) {
         // TODO: proper error handling
         throw NetworkErrorException("got error while requesting sender token")
     }
     val stream = InputStreamReader(connection.inputStream)
-    val result = Gson().fromJson(stream, SenderToken::class.java)
+    val tmp: String = BufferedReader(stream).lines().collect(Collectors.joining("\n"))
+    println(tmp)
+    val result = Gson().fromJson(tmp, JsonObject::class.java)
+    println(result)
 
-    // FIXME: verify signature
+    var sender_token: SenderToken = SenderToken(
+        Base64.decode(result.get("sender_token_id").asString, Base64.NO_WRAP),
+        Base64.decode(result.get("public_point").asString, Base64.NO_WRAP),
+        Base64.decode(result.get("signature").asString, Base64.NO_WRAP))
 
-    return result
+    println(sender_token)
+    return sender_token
 
 }
 
@@ -80,7 +85,7 @@ fun pushMessageToServer(messageElement: MessageElement) {
     println(connection.responseCode);
 }
 
-fun sendMessage(message: ByteArray, recipient: ByteArray) {
+fun sendEncryptedMessage(message: ByteArray, recipient: ByteArray) {
     val json = JsonObject()
     json.addProperty("recipient", Base64.encodeToString(recipient, Base64.DEFAULT))
     json.addProperty("msg", Base64.encodeToString(message, Base64.DEFAULT))

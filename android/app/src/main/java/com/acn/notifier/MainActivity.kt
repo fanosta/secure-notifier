@@ -35,23 +35,7 @@ class MainActivity : Activity() {
     //val shared_key = km?.keyAgreement()
     //Log.d("DH", Base64.encodeToString(shared_key, Base64.DEFAULT))
 
-    val messageToSign = "Hello"
-    val sign1 = km?.sign(messageToSign)
-    Log.d("Sign", "Sign 1: ${km?.sign(messageToSign)}\tSign1 still valid: ${km?.verifySign(messageToSign, sign1!!)}")
-    Log.d("Sign", "Sign 2: ${km?.sign(messageToSign)}\tSign1 still valid: ${km?.verifySign(messageToSign, sign1!!)}")
-    var km2 = KeyManager(this)
-    Log.d("Sign", "Sign 3: ${km?.sign(messageToSign)}\tSign1 still valid: ${km?.verifySign(messageToSign, sign1!!)}")
-    Log.d("Sign", "Sign 4: ${km?.sign(messageToSign)}\tSign1 still valid: ${km?.verifySign(messageToSign, sign1!!)}")
 
-    /* message encrypt
-    val message = "Message"
-    Log.d("DH", message)
-    var encrypted = km.encryptMessage(message, shared_key)
-    Log.d("DH", encrypted)
-    var decrypted = km.decryptMessage(encrypted, shared_key)
-    Log.d("DH", decrypted)
-    Log.d("DH", Base64.encodeToString(km.getIV(), Base64.DEFAULT))
-     */
   }
 
   fun openNetworkTestActivity(view: View?) {

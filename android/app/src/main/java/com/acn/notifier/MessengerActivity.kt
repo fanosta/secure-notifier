@@ -2,12 +2,14 @@ package com.acn.notifier
 
 import android.os.Bundle
 import android.os.StrictMode
+import android.util.Base64
 import android.view.LayoutInflater
 import android.view.View
 import android.widget.DatePicker
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import org.bouncycastle.crypto.params.Ed25519PublicKeyParameters
 import java.time.LocalDateTime
 
 
@@ -48,10 +50,50 @@ class MessengerActivity : AppCompatActivity() {
 
         messageView.text = "";
 
-        val key = km?.keyAgreement(ByteArray(32))
-        pushMessageToServer(MessageElement("Sebastian", message, LocalDateTime.now().toString()))
+        val recipientPublicKey = km?.loadData(km?.pubkey_file)
+        println(recipientPublicKey)
 
-        addGUIMessageElement("Sebastian", message, LocalDateTime.now().toString());
+        if (recipientPublicKey != null && km != null) {
+
+            val (key, sender_keyshare, token) = km!!.keyAgreement(Base64.decode(recipientPublicKey, Base64.DEFAULT))
+
+            println(Base64.encodeToString(key, Base64.DEFAULT))
+            println(token)
+            /*
+              token_id := raw_message[0:32]
+              sender_keyshare := raw_message[32:64]
+              nonce := raw_message[64:88]
+              ciphertext := raw_message[88:]
+
+              signature := plaintext[:64]
+              publickey := plaintext[64:96]
+              msg := plaintext[96:]
+             */
+            var msg_type = byteArrayOf(0x2)
+            var token_id = token?.Id
+            var recipient = km!!.getRecipientPublicKey()
+            if (token_id != null && sender_keyshare != null && recipient != null) {
+                val hash = km!!.hashTuple(
+                    ("message signature").toByteArray(),
+                    token_id,
+                    message.toByteArray()
+                )
+                val publickey = km!!.getDeviceKeyPair().public as Ed25519PublicKeyParameters
+                val signature = km!!.sign(hash.toString())
+                val plaintext: ByteArray = signature + publickey.encoded + message.toByteArray()
+                var (nonce, ciphertext) = km!!.encryptBytes(plaintext, key)
+                sendEncryptedMessage(msg_type + sender_keyshare + nonce + ciphertext, recipient)
+            } else {
+
+            }
+
+        } else {
+
+        }
+
+        //pushMessageToServer(MessageElement("Sebastian", message, LocalDateTime.now().toString()))
+
+        //addGUIMessageElement("Sebastian", message, LocalDateTime.now().toString());
 
     }
 }

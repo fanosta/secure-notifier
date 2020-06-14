@@ -1,9 +1,6 @@
 package com.acn.notifier
 
 import android.content.Context
-import android.content.ContextWrapper
-import android.content.pm.PackageInfo
-import android.content.pm.PackageManager
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
@@ -18,12 +15,13 @@ import org.bouncycastle.crypto.generators.X25519KeyPairGenerator
 import org.bouncycastle.crypto.params.AsymmetricKeyParameter
 import org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters
 import org.bouncycastle.crypto.params.Ed25519PublicKeyParameters
+import org.bouncycastle.crypto.params.X25519PublicKeyParameters
 import org.bouncycastle.crypto.signers.Ed25519Signer
+import org.bouncycastle.crypto.util.PublicKeyFactory
 import org.bouncycastle.jcajce.provider.digest.SHA3
 import org.bouncycastle.jcajce.provider.digest.SHA3.DigestSHA3
-import java.io.File
-import java.io.FileInputStream
-import java.io.FileOutputStream
+import org.bouncycastle.openssl.PEMParser
+import java.io.*
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.security.KeyStore
@@ -221,12 +219,19 @@ class KeyManager(appContext: Context) {
         return shared_key
     }
 
-    fun keyAgreement(recipientPublicKey: ByteArray): ByteArray {
+    fun keyAgreement(recipientPublicKey: ByteArray): Triple<ByteArray, ByteArray, SenderToken> {
         // get token id + public key
 
         val token = getSenderToken(recipientPublicKey)
-        // FIXME: just keeping the compiler happy
-        val server_public_key: AsymmetricKeyParameter = getDeviceKeyPair().public
+        println(Base64.encodeToString(token.PublicPoint, Base64.DEFAULT))
+        println(Base64.encodeToString(token.Id, Base64.DEFAULT))
+
+        val hash = hashTuple(("sender token").toByteArray(), token.Id, token.PublicPoint)
+        // FIXME: verify signature
+        val res = verifySign(hash.toString(), token.Signature)
+        println(res)
+
+        val server_public_key = X25519PublicKeyParameters(ByteArrayInputStream(token.PublicPoint))
 
         val key_pair: AsymmetricCipherKeyPair = generateX25519KeyPair()
         // send client_public_key to server
@@ -235,7 +240,7 @@ class KeyManager(appContext: Context) {
         // encrypt message with shared key
         val shared_key = getSharedSecret(server_public_key, client_private_key)
 
-        return shared_key
+        return Triple(shared_key, client_public_key.toString().toByteArray(), token)
     }
 
     fun hashTuple(vararg messages: ByteArray): ByteArray
@@ -277,7 +282,7 @@ class KeyManager(appContext: Context) {
 
         var (nonce, ciphertext) = encryptBytes(mypubkey.encoded, onetimekey);
 
-        sendMessage(msg_type + nonce + ciphertext, pubkey);
+        sendEncryptedMessage(msg_type + nonce + ciphertext, pubkey);
     }
 
     fun getRecipientPublicKey() : ByteArray? {

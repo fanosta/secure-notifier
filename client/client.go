@@ -185,8 +185,8 @@ func pair(pubkey ed25519.PublicKey, init_channel chan []byte, new_peer_chan chan
 func decrypt_message(raw_message []byte, senderTokens *[]PrivateSenderToken) (*DecryptedMessage, error) {
 	token_id := raw_message[0:32]
 	sender_keyshare := raw_message[32:64]
-	nonce := raw_message[64:88]
-	ciphertext := raw_message[88:]
+	nonce := raw_message[64:76]
+	ciphertext := raw_message[76:]
 
 	privateToken, err := getToken(senderTokens, token_id)
 	if err != nil {
@@ -302,6 +302,7 @@ func main() {
 		log.Fatal("authorize failed: ", err)
 		return
 	}
+	log.Printf("authorization complete\n")
 
 	if handshakeFin.SendAllTokens {
 		c.WriteJSON(tokens)

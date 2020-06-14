@@ -28,20 +28,7 @@ class MainActivity : Activity() {
     val intent = Intent(this, ScannerActivity::class.java)
     startActivityForResult(intent, 0)
   }
-
-  fun initKeyManager(view: View?) {
-
-    textView!!.text = km?.loadData(km?.device_prkey_file) ?: "File empty"
-    //val shared_key = km?.keyAgreement()
-    //Log.d("DH", Base64.encodeToString(shared_key, Base64.DEFAULT))
-
-
-  }
-
-  fun openNetworkTestActivity(view: View?) {
-    startActivity(Intent(this, NetworkTestActivity::class.java))
-  }
-
+  
   fun openMessengerActivity(view: View?) {
     startActivity(Intent(this, MessengerActivity::class.java))
   }

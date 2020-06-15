@@ -1,5 +1,6 @@
 package com.acn.notifier
 
+import android.annotation.SuppressLint
 import android.os.Bundle
 import android.os.StrictMode
 import android.util.Base64
@@ -8,7 +9,6 @@ import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
-import org.bouncycastle.crypto.params.Ed25519PublicKeyParameters
 import java.time.LocalDateTime
 
 
@@ -24,6 +24,7 @@ class MessengerActivity : AppCompatActivity() {
         km = KeyManager(this.applicationContext)
     }
 
+    @SuppressLint("SetTextI18n")
     fun addGUIMessageElement(from:String, message:String, footer:String) {
 
         val container = findViewById<LinearLayout>(R.id.messageContainer)
@@ -33,9 +34,9 @@ class MessengerActivity : AppCompatActivity() {
         val newMessageMessageView = newMessageLayout.findViewById<TextView>(R.id.textViewMessage)
         val newMessageFooterView = newMessageLayout.findViewById<TextView>(R.id.textViewFooter)
 
-        newMessageHeaderView.setText("From: " + from)
-        newMessageMessageView.setText(message)
-        newMessageFooterView.setText(footer)
+        newMessageHeaderView.text = "From: $from"
+        newMessageMessageView.text = message
+        newMessageFooterView.text = footer
 
         container.addView(newMessageLayout)
 
@@ -43,10 +44,10 @@ class MessengerActivity : AppCompatActivity() {
 
     fun sendMessage(view : View?) {
 
-        var messageView = findViewById<TextView>(R.id.textNewMessage)
-        var message = messageView.text.toString();
+        val messageView = findViewById<TextView>(R.id.textNewMessage)
+        val message = messageView.text.toString();
 
-        if(message.length <= 0) return;
+        if(message.isEmpty()) return;
         messageView.text = "";
 
         if(!checkNetworkConnection(applicationContext)) {
@@ -108,7 +109,7 @@ class MessengerActivity : AppCompatActivity() {
             addGUIMessageElement("System", message, "Transferred to Server: ${LocalDateTime.now()}")
         }
         else {
-            showToastMessage(applicationContext, "Hää 0.o - Message sending failed - try again")
+            showToastMessage(this.applicationContext, "Hää 0.o - Message sending failed - try again")
         }
     }
 }

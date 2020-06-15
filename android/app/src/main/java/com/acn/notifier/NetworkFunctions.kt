@@ -23,8 +23,8 @@ val certificatePinner = CertificatePinner
     .add(HOSTNAME, "sha256/YLh1dUR9y6Kja30RrAn7JKnbQG/uEtLMkBgFF2Fuihg=")
     .add(HOSTNAME, "sha256/Vjs8r4z+80wjNcr1YKepWQboSIRi63WsWXhIMN+eWys=")
     .build()
-
-/*val certificatePinner = CertificatePinner
+/*
+val certificatePinner = CertificatePinner
     .Builder()
     .add(HOSTNAME, "sha256/Egh1dUR9y6Kja30RrAn7JKnbQG/uEtLMkBgFF2Fuihg=")
     .add(HOSTNAME, "sha256/Fss8r4z+80wjNcr1YKepWQboSIRi63WsWXhIMN+eWys=")

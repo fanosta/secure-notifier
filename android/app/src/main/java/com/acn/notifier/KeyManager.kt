@@ -67,7 +67,6 @@ class KeyManager(appContext: Context) {
 
     var pubkey_file: File? = null
     var device_prkey_file: File? = null
-    var device_kp: AsymmetricCipherKeyPair? = null
 
 
     init {
@@ -138,8 +137,8 @@ class KeyManager(appContext: Context) {
             it.readBytes()
         }
 
-        var nonce = fileContents.copyOfRange(0, 12)
-        var data = fileContents.copyOfRange(12, fileContents.size)
+        val nonce = fileContents.copyOfRange(0, 12)
+        val data = fileContents.copyOfRange(12, fileContents.size)
 
         val cipher = getDecCipher(nonce)
         val decryptedData = cipher.doFinal(data)
@@ -291,8 +290,8 @@ class KeyManager(appContext: Context) {
 
         val onetimekey = Base64.decode(json.get("onetimekey").asString, Base64.DEFAULT)
 
-        var msg_type = byteArrayOf(0x1)
-        var (_, mypubkey) = getDeviceKeyPair()
+        val msg_type = byteArrayOf(0x1)
+        val (_, mypubkey) = getDeviceKeyPair()
 
         val (nonce, ciphertext) = encryptBytes(mypubkey.encoded, onetimekey);
 

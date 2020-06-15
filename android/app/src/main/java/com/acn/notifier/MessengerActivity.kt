@@ -54,7 +54,14 @@ class MessengerActivity : AppCompatActivity() {
             return
         }
 
-        if(!endpointsAreAvailable()) {
+        val(available, verified) = endpointsAreAvailableAndValid()
+
+        if(!verified) {
+            showToastMessage(applicationContext, "Oha - it seems someone is intruding us ;/")
+            return
+        }
+
+        if(!available) {
             showToastMessage(applicationContext, "We r unable to reach the Server :(")
             return
         }

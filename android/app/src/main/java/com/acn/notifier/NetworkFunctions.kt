@@ -9,11 +9,8 @@ import com.google.gson.Gson
 import com.google.gson.JsonObject
 import okhttp3.*
 import org.bouncycastle.crypto.params.Ed25519PublicKeyParameters
-import java.io.DataOutputStream
-import java.lang.Exception
-import java.net.HttpURLConnection
-import java.net.URL
 import java.util.concurrent.TimeUnit
+import javax.net.ssl.SSLPeerUnverifiedException
 
 
 const val NETWORK_ENDPOINT = "https://acn.nageler.org/"
@@ -36,11 +33,24 @@ fun checkNetworkConnection(applicationContext:Context):Boolean{
     return false
 }
 
-fun endpointsAreAvailable() : Boolean {
-    val response = getRequest(NETWORK_ENDPOINT)
-    return response != null && response.isSuccessful
+fun endpointsAreAvailableAndValid() : Pair<Boolean, Boolean> {
+    var available = false
+    var verified = true
+
+    try{
+        val response = getRequest(NETWORK_ENDPOINT)
+        available = response != null && response.isSuccessful
+
+    } catch (sslException : SSLPeerUnverifiedException) {
+        verified = false
+    } catch (exception : java.lang.Exception) {
+        available = false
+    }
+
+    return Pair(available, verified)
 }
 
+@Throws(SSLPeerUnverifiedException::class)
 fun postRequest(url: String, postContent : ByteArray, mediaType: MediaType? = MediaType.parse("application/json; charset=utf-8")) : Response? {
     if(mediaType == null) return null
 
@@ -50,15 +60,30 @@ fun postRequest(url: String, postContent : ByteArray, mediaType: MediaType? = Me
     return executeRequest(request)
 }
 
+@Throws(SSLPeerUnverifiedException::class)
 fun getRequest(url: String) : Response? {
     return executeRequest(Request.Builder().url(url).build())
 }
 
+@Throws(SSLPeerUnverifiedException::class)
 private fun executeRequest(request:Request, timeout:Long = 5000) : Response? {
-    val client = OkHttpClient.Builder().callTimeout(timeout, TimeUnit.MILLISECONDS).build()
+    val certificatePinner = CertificatePinner.Builder()
+                            .add(
+                                "acn.nageler.org",
+                                "sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+                            )
+                            .build()
 
-    try{
+    val client = OkHttpClient
+                .Builder()
+                .certificatePinner(certificatePinner)
+                .callTimeout(timeout, TimeUnit.MILLISECONDS)
+                .build()
+
+    try {
         return client.newCall(request).execute()
+    } catch (sslException : SSLPeerUnverifiedException) {
+        throw sslException
     } catch (exception : Exception) {
         Log.d("executeRequest", "Failed request due to: ${exception.message}")
     }

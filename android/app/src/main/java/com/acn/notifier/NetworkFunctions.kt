@@ -7,14 +7,14 @@ import android.util.Base64
 import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.JsonObject
+import okhttp3.*
 import org.bouncycastle.crypto.params.Ed25519PublicKeyParameters
-import java.io.BufferedReader
 import java.io.DataOutputStream
-import java.io.InputStreamReader
 import java.lang.Exception
 import java.net.HttpURLConnection
 import java.net.URL
-import java.util.stream.Collectors
+import java.util.concurrent.TimeUnit
+
 
 const val NETWORK_ENDPOINT = "https://acn.nageler.org/"
 const val NETWORK_ENDPOINT_SEND = "https://acn.nageler.org/send"
@@ -37,37 +37,45 @@ fun checkNetworkConnection(applicationContext:Context):Boolean{
 }
 
 fun endpointsAreAvailable() : Boolean {
-    val url = URL(NETWORK_ENDPOINT)
-    val connection = url.openConnection() as HttpURLConnection
+    val response = getRequest(NETWORK_ENDPOINT)
+    return response != null && response.isSuccessful
+}
 
-    connection.requestMethod = "GET"
-    connection.doInput = true
-    connection.connectTimeout = 5000
+fun postRequest(url: String, postContent : ByteArray, mediaType: MediaType? = MediaType.parse("application/json; charset=utf-8")) : Response? {
+    if(mediaType == null) return null
+
+    val body = RequestBody.create(mediaType, postContent)
+    val request = Request.Builder().url(url).post(body).build()
+
+    return executeRequest(request)
+}
+
+fun getRequest(url: String) : Response? {
+    return executeRequest(Request.Builder().url(url).build())
+}
+
+private fun executeRequest(request:Request, timeout:Long = 5000) : Response? {
+    val client = OkHttpClient.Builder().callTimeout(timeout, TimeUnit.MILLISECONDS).build()
 
     try{
-        return (connection.responseCode < 400)
+        return client.newCall(request).execute()
     } catch (exception : Exception) {
-        Log.d("endpointsAreAvailable", "Failed connecting to Server due to: ${exception.message}")
+        Log.d("executeRequest", "Failed request due to: ${exception.message}")
     }
 
-    return false
+    return null
 }
 
 fun getSenderToken(recipient: Ed25519PublicKeyParameters): SenderToken? {
 
     val recipientEncoded = Base64.encodeToString(recipient.encoded, Base64.URL_SAFE)
+    val response = getRequest("$NETWORK_ENDPOINT_GETTOKEN/$recipientEncoded")
 
-    val url = URL("$NETWORK_ENDPOINT_GETTOKEN/$recipientEncoded")
-    val connection = url.openConnection() as HttpURLConnection
-    connection.requestMethod = "GET"
-    connection.doInput = true
-
-    println(connection.responseCode)
-    if (connection.responseCode >= 400) return null
+    if (response != null && !response.isSuccessful) return null
+    if (response!!.body() == null) return null
 
     try{
-        val stream = InputStreamReader(connection.inputStream)
-        val jsonString: String = BufferedReader(stream).lines().collect(Collectors.joining("\n"))
+        val jsonString: String = response.body()!!.bytes().toString(Charsets.UTF_8)
         val result = Gson().fromJson(jsonString, JsonObject::class.java)
 
         return SenderToken(Base64.decode(result.get("sender_token_id").asString, Base64.NO_WRAP),
@@ -81,26 +89,12 @@ fun getSenderToken(recipient: Ed25519PublicKeyParameters): SenderToken? {
     return null
 }
 
-fun sendEncryptedMessage(message: ByteArray, recipient: Ed25519PublicKeyParameters) {
+fun sendEncryptedMessage(message: ByteArray, recipient: Ed25519PublicKeyParameters) : Boolean {
     val json = JsonObject()
     json.addProperty("recipient", Base64.encodeToString(recipient.encoded, Base64.DEFAULT))
     json.addProperty("msg", Base64.encodeToString(message, Base64.DEFAULT))
 
-    val url = URL(NETWORK_ENDPOINT_SEND)
-    val connection = url.openConnection() as HttpURLConnection
-    connection.requestMethod = "POST"
-    connection.doOutput = true
+    val response = postRequest(NETWORK_ENDPOINT_SEND, json.toString().toByteArray())
 
-    val postData: ByteArray = json.toString().toByteArray()
-
-    connection.setRequestProperty("charset", "utf-8")
-    connection.setRequestProperty("Content-length", postData.size.toString())
-    connection.setRequestProperty("Content-Type", "application/json")
-
-    val outputStream = DataOutputStream(connection.outputStream)
-    outputStream.write(postData)
-    outputStream.flush()
-
-    println(connection.responseCode)
-    println(connection.responseMessage)
+    return response != null && response.isSuccessful
 }

@@ -95,8 +95,13 @@ class MessengerActivity : AppCompatActivity() {
         val plaintext: ByteArray = signature + publickey.encoded + message.toByteArray()
         val (nonce, ciphertext) = km!!.encryptBytes(plaintext, key)
 
-        sendEncryptedMessage(msg_type + token_id + sender_keyshare + nonce + ciphertext, recipientPublicKey)
+        val result = sendEncryptedMessage(msg_type + token_id + sender_keyshare + nonce + ciphertext, recipientPublicKey)
 
-        addGUIMessageElement("System", message, "Transferred to Server: ${LocalDateTime.now()}")
+        if(result) {
+            addGUIMessageElement("System", message, "Transferred to Server: ${LocalDateTime.now()}")
+        }
+        else {
+            showToastMessage(applicationContext, "Hää 0.o - Message sending failed - try again")
+        }
     }
 }

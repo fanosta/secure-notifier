@@ -145,7 +145,7 @@ func readPump(conn *websocket.Conn, pubkey ed25519.PublicKey) {
 			fmt.Printf("error: %v\n", err)
 			break
 		}
-		
+
 		tokensMut.Lock()
 		senderTokens[pubkeyarr] = append(senderTokens[pubkeyarr], newTokens...)
 		tokensMut.Unlock()
@@ -246,7 +246,7 @@ func sendMessage(c *gin.Context) {
 
 func getToken(c *gin.Context) {
 	var token SenderToken
-	pubkey, err := base64.StdEncoding.DecodeString(c.Params.ByName("pubkey"))
+	pubkey, err := base64.URLEncoding.DecodeString(c.Params.ByName("pubkey"))
 	if err != nil || len(pubkey) != 32 {
 		c.JSON(422, strToMsg("invalid public key"))
 		return

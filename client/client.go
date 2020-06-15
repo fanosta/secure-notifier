@@ -167,6 +167,13 @@ func pair(pubkey ed25519.PublicKey, init_channel chan []byte, new_peer_chan chan
 		return errors.New("peer send public key of invalid length")
 	}
 
+	peerPubkey := plaintext[:]
+
+	if name, err := getPeerName(peerPubkey, peers); err == nil {
+		fmt.Printf("peer %s is already known as %s\n", base64.StdEncoding.EncodeToString(peerPubkey), name)
+		return nil
+	}
+
 	fmt.Printf("Enter a name for the new peer: ")
 	reader := bufio.NewReader(os.Stdin)
 	name, err := reader.ReadString('\n')
@@ -174,7 +181,7 @@ func pair(pubkey ed25519.PublicKey, init_channel chan []byte, new_peer_chan chan
 		return errors.New("reading name failed")
 	}
 
-	peer := Peer{Publickey: plaintext, Name: strings.TrimSpace(name)}
+	peer := Peer{Publickey: peerPubkey, Name: strings.TrimSpace(name)}
 	new_peer_chan <- peer
 
 	return nil
@@ -340,6 +347,7 @@ func main() {
 	for {
 		select {
 		case peer := <-new_peer_chan:
+			expecting_init_msg = false
 			fmt.Printf("adding new peer: %s:%s\n", peer.Name, base64.StdEncoding.EncodeToString(peer.Publickey))
 			peers = append(peers, peer)
 			err = savePeers(peerspath, peers)
@@ -347,6 +355,7 @@ func main() {
 				log.Fatal("saving updated peer list failed", err)
 				os.Exit(1)
 			}
+
 		case msg := <-msg_chan:
 			msgtype := msg[0]
 			msgcontent := msg[1:]
@@ -359,8 +368,6 @@ func main() {
 					} else {
 						fmt.Printf("unexpted init message\n")
 					}
-					expecting_init_msg = false
-
 				case MSGTYPE_ENCRYPTED:
 					decrypted_msg, err = decrypt_message(msgcontent, &tokens)
 				default:

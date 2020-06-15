@@ -17,6 +17,19 @@ const val NETWORK_ENDPOINT = "https://acn.nageler.org/"
 const val NETWORK_ENDPOINT_SEND = "https://acn.nageler.org/send"
 const val NETWORK_ENDPOINT_GETTOKEN = "https://acn.nageler.org/get_token"
 
+const val HOSTNAME = "acn.nageler.org"
+val certificatePinner = CertificatePinner
+    .Builder()
+    .add(HOSTNAME, "sha256/YLh1dUR9y6Kja30RrAn7JKnbQG/uEtLMkBgFF2Fuihg=")
+    .add(HOSTNAME, "sha256/Vjs8r4z+80wjNcr1YKepWQboSIRi63WsWXhIMN+eWys=")
+    .build()
+
+/*val certificatePinner = CertificatePinner
+    .Builder()
+    .add(HOSTNAME, "sha256/Egh1dUR9y6Kja30RrAn7JKnbQG/uEtLMkBgFF2Fuihg=")
+    .add(HOSTNAME, "sha256/Fss8r4z+80wjNcr1YKepWQboSIRi63WsWXhIMN+eWys=")
+    .build()*/
+
 data class SenderToken(val Id: ByteArray, val PublicPoint: ByteArray, val Signature: ByteArray)
 
 
@@ -38,11 +51,12 @@ fun endpointsAreAvailableAndValid() : Pair<Boolean, Boolean> {
     var verified = true
 
     try{
-        val response = getRequest(NETWORK_ENDPOINT)
+        val response = executeRequest(Request.Builder().url(NETWORK_ENDPOINT).build())
         available = response != null && response.isSuccessful
 
     } catch (sslException : SSLPeerUnverifiedException) {
         verified = false
+        Log.d("Pinning", sslException.toString())
     } catch (exception : java.lang.Exception) {
         available = false
     }
@@ -50,30 +64,29 @@ fun endpointsAreAvailableAndValid() : Pair<Boolean, Boolean> {
     return Pair(available, verified)
 }
 
-@Throws(SSLPeerUnverifiedException::class)
 fun postRequest(url: String, postContent : ByteArray, mediaType: MediaType? = MediaType.parse("application/json; charset=utf-8")) : Response? {
-    if(mediaType == null) return null
+    if (mediaType == null) return null
 
     val body = RequestBody.create(mediaType, postContent)
     val request = Request.Builder().url(url).post(body).build()
 
-    return executeRequest(request)
+    return try {
+        executeRequest(request)
+    } catch (exception: java.lang.Exception) {
+        null
+    }
 }
 
-@Throws(SSLPeerUnverifiedException::class)
 fun getRequest(url: String) : Response? {
-    return executeRequest(Request.Builder().url(url).build())
+    return try {
+        executeRequest(Request.Builder().url(url).build())
+    } catch (exception: java.lang.Exception) {
+        null
+    }
 }
 
 @Throws(SSLPeerUnverifiedException::class)
 private fun executeRequest(request:Request, timeout:Long = 5000) : Response? {
-    val certificatePinner = CertificatePinner.Builder()
-                            .add(
-                                "acn.nageler.org",
-                                "sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-                            )
-                            .build()
-
     val client = OkHttpClient
                 .Builder()
                 .certificatePinner(certificatePinner)

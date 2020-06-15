@@ -16,6 +16,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.util.stream.Collectors
 
+const val NETWORK_ENDPOINT = "https://acn.nageler.org/"
 const val NETWORK_ENDPOINT_SEND = "https://acn.nageler.org/send"
 const val NETWORK_ENDPOINT_GETTOKEN = "https://acn.nageler.org/get_token"
 
@@ -31,6 +32,23 @@ fun checkNetworkConnection(applicationContext:Context):Boolean{
     if(capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) return true
     if(capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)) return true
     if(capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) return true
+
+    return false
+}
+
+fun endpointsAreAvailable() : Boolean {
+    val url = URL(NETWORK_ENDPOINT)
+    val connection = url.openConnection() as HttpURLConnection
+
+    connection.requestMethod = "GET"
+    connection.doInput = true
+    connection.connectTimeout = 5000
+
+    try{
+        return (connection.responseCode < 400)
+    } catch (exception : Exception) {
+        Log.d("endpointsAreAvailable", "Failed connecting to Server due to: ${exception.message}")
+    }
 
     return false
 }

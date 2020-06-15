@@ -54,6 +54,11 @@ class MessengerActivity : AppCompatActivity() {
             return
         }
 
+        if(!endpointsAreAvailable()) {
+            showToastMessage(applicationContext, "We r unable to reach the Server :(")
+            return
+        }
+
         if(km == null) {
             showToastMessage(applicationContext, "Some internal KM problems :/")
             return

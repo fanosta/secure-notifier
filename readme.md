@@ -1,22 +1,30 @@
-# 2020-04-28
+# Android: Notifier (Server) 
+Receiving notifications from mobile phone on a computer client using a web server while ensuring that all transfered data is encrypted.
 
-# Misc
-* Android client in Kotlin
-* Server in Python
-* Linux-CLI in Python
-* repo on github
+#### Repository
+.
+├── android   (android client in Kotlin)
+├── client    (desktop client in Go)
+├── server    (server in Go)
+├── slides
 
-# Message
-* sender_id
-* timestamp
-* command
-  * send notification
-  * request authorization
-* message title, message body
+#### Message
+* msg_type
+  0x1 = init
+  0x2 = encrypted msg
 
+* message type init 
+  nonce := msg[:12]
+  ciphertext := msg[12:]
 
-## Protocol
-* Running over HTTPS/JSON
-* Recipient receives Wakeup-Event
-* Recipient uses `sync` api call to get actual messages
-* be careful about replay attacks
+  publickey = plaintext
+
+* message type encrypted
+  token_id := raw_message[0:32]
+  sender_keyshare := raw_message[32:64]
+  nonce := raw_message[64:88]
+  ciphertext := raw_message[88:]
+
+  signature := plaintext[:64]
+  publickey := plaintext[64:96]
+  msg := plaintext[96:]

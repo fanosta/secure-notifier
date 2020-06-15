@@ -69,16 +69,7 @@ class MessengerActivity : AppCompatActivity() {
         val (key, sender_keyshare, token) = tripleResult
         println(Base64.encodeToString(key, Base64.DEFAULT))
         println(token)
-        /*
-          token_id := raw_message[0:32]
-          sender_keyshare := raw_message[32:64]
-          nonce := raw_message[64:88]
-          ciphertext := raw_message[88:]
 
-          signature := plaintext[:64]
-          publickey := plaintext[64:96]
-          msg := plaintext[96:]
-         */
         val msg_type = byteArrayOf(0x2)
         val token_id = token.Id
 

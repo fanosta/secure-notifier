@@ -4,6 +4,7 @@ import android.util.Base64
 import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.JsonObject
+import org.bouncycastle.crypto.params.Ed25519PublicKeyParameters
 import java.io.BufferedReader
 import java.io.DataOutputStream
 import java.io.InputStreamReader
@@ -16,9 +17,10 @@ const val NETWORK_ENDPOINT_GETTOKEN = "https://acn.nageler.org/get_token";
 
 data class SenderToken(val Id: ByteArray, val PublicPoint: ByteArray, val Signature: ByteArray)
 
-fun getSenderToken(recipient: ByteArray): SenderToken? {
+fun getSenderToken(recipient: Ed25519PublicKeyParameters): SenderToken? {
 
-    val recipientEncoded = Base64.encodeToString(recipient, Base64.URL_SAFE)
+    val recipientEncoded = Base64.encodeToString(recipient.encoded, Base64.URL_SAFE)
+
     val url = URL("$NETWORK_ENDPOINT_GETTOKEN/$recipientEncoded")
     val connection = url.openConnection() as HttpURLConnection
     connection.requestMethod = "GET"
@@ -43,9 +45,9 @@ fun getSenderToken(recipient: ByteArray): SenderToken? {
     return null
 }
 
-fun sendEncryptedMessage(message: ByteArray, recipient: ByteArray) {
+fun sendEncryptedMessage(message: ByteArray, recipient: Ed25519PublicKeyParameters) {
     val json = JsonObject()
-    json.addProperty("recipient", Base64.encodeToString(recipient, Base64.DEFAULT))
+    json.addProperty("recipient", Base64.encodeToString(recipient.encoded, Base64.DEFAULT))
     json.addProperty("msg", Base64.encodeToString(message, Base64.DEFAULT))
 
     val url = URL(NETWORK_ENDPOINT_SEND)

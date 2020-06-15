@@ -32,9 +32,9 @@ class MainActivity : Activity() {
     var status = "Use 'Scan QR-Code' to connect to a Client"
     buttonMessenger!!.visibility = View.GONE
 
-    if(km != null && km!!.getRecipientPublicKey() != null) {
+    if(km != null && km!!.getPeerPublicKey() != null) {
       status = "You are connected with:\n\n"
-      status += Base64.encodeToString(km!!.getRecipientPublicKey(), Base64.DEFAULT)
+      status += Base64.encodeToString(km!!.getPeerPublicKey()?.encoded, Base64.DEFAULT)
       status += "\n\nUse 'Messenger' to send messages"
       status += "\n\nOr use 'Scan QR-Code' to connect to a new Client"
       buttonMessenger!!.visibility = View.VISIBLE

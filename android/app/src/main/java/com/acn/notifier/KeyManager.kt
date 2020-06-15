@@ -5,17 +5,13 @@ import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
 import android.util.Log
-import com.google.gson.Gson
-import com.google.gson.JsonObject
+import com.google.gson.*
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.KeyGenerationParameters
 import org.bouncycastle.crypto.agreement.X25519Agreement
 import org.bouncycastle.crypto.generators.Ed25519KeyPairGenerator
 import org.bouncycastle.crypto.generators.X25519KeyPairGenerator
-import org.bouncycastle.crypto.params.AsymmetricKeyParameter
-import org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters
-import org.bouncycastle.crypto.params.Ed25519PublicKeyParameters
-import org.bouncycastle.crypto.params.X25519PublicKeyParameters
+import org.bouncycastle.crypto.params.*
 import org.bouncycastle.crypto.signers.Ed25519Signer
 import org.bouncycastle.jcajce.provider.digest.SHA3
 import org.bouncycastle.jcajce.provider.digest.SHA3.DigestSHA3
@@ -23,6 +19,7 @@ import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
+import java.lang.reflect.Type
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.security.KeyStore
@@ -33,19 +30,52 @@ import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
 
-class KeyManager(appContext: Context) {
+val customGson: Gson = GsonBuilder().registerTypeHierarchyAdapter(
+    ByteArray::class.java,
+    ByteArrayToBase64TypeAdapter()
+).create()
 
+private class ByteArrayToBase64TypeAdapter : JsonSerializer<ByteArray?>,
+    JsonDeserializer<ByteArray?> {
+    @Throws(JsonParseException::class)
+    override fun deserialize(
+        json: JsonElement,
+        typeOfT: Type?,
+        context: JsonDeserializationContext?
+    ): ByteArray {
+        return Base64.decode(json.getAsString(), Base64.NO_WRAP)
+    }
+
+    override fun serialize(
+        src: ByteArray?,
+        typeOfSrc: Type?,
+        context: JsonSerializationContext?
+    ): JsonElement {
+        return JsonPrimitive(Base64.encodeToString(src, Base64.NO_WRAP))
+    }
+}
+
+data class KeyManagerStruct(var PrivateKey: ByteArray?, var PeerPublicKey: ByteArray?)
+
+class KeyManager(appContext: Context) {
     val km_tag = "KeyManager"
     val key_name = "file_key"
     val ks: KeyStore
+
+    var configFile: File? = null
+    var config: KeyManagerStruct? = null
+
     var pubkey_file: File? = null
     var device_prkey_file: File? = null
     var device_kp: AsymmetricCipherKeyPair? = null
+
 
     init {
         val path = appContext.filesDir
         val keyDirectory = File(path, "key")
         keyDirectory.mkdirs()
+
+        configFile = File(keyDirectory, "config.json.enc")
 
         pubkey_file = File(keyDirectory, "pubkey.txt")
         device_prkey_file = File(keyDirectory, "device_prkey_spec.txt")
@@ -69,124 +99,117 @@ class KeyManager(appContext: Context) {
         } else {
             Log.d(km_tag, "key already exists")
         }
+
+        try {
+            readConfig()
+        } catch (ex: java.io.FileNotFoundException) {
+            config = KeyManagerStruct(null, null)
+            writeConfig()
+        }
     }
 
-    private fun encryptData(data: String): Pair<ByteArray, String> {
-        val secret_key = ks.getKey(key_name, null) as SecretKey
-        val cipher_instance = Cipher.getInstance("AES/GCM/NoPadding")
-        cipher_instance.init(Cipher.ENCRYPT_MODE, secret_key)
-
-        val encrypted_data = cipher_instance.doFinal(data.toByteArray())
-        val encoded_data = Base64.encodeToString(encrypted_data, Base64.DEFAULT)
-
-        return  Pair(cipher_instance.iv, encoded_data)
+    private fun getEncCipher(): Cipher {
+        val secretKey = ks.getKey(key_name, null) as SecretKey
+        val cipherInstance = Cipher.getInstance("AES/GCM/NoPadding")
+        cipherInstance.init(Cipher.ENCRYPT_MODE, secretKey)
+        return cipherInstance
+    }
+    private fun getDecCipher(nonce: ByteArray): Cipher {
+        val secretKey = ks.getKey(key_name, null) as SecretKey
+        val cipherInstance = Cipher.getInstance("AES/GCM/NoPadding")
+        val spec = GCMParameterSpec(128, nonce)
+        cipherInstance.init(Cipher.DECRYPT_MODE, secretKey, spec)
+        return cipherInstance
     }
 
-    private fun decryptData(iv: ByteArray, data: String): String {
-        val decoded_data = Base64.decode(data, Base64.DEFAULT)
-
-        val secret_key = ks.getKey(key_name, null) as SecretKey
-        val cipher_instance = Cipher.getInstance("AES/GCM/NoPadding")
-        val spec = GCMParameterSpec(128, iv)
-        cipher_instance.init(Cipher.DECRYPT_MODE, secret_key, spec)
-
-        val decrypted_data = cipher_instance.doFinal(decoded_data)
-
-        return String(decrypted_data, Charsets.UTF_8)
-    }
-
-    private fun writeToFile(iv: ByteArray, encrypted_data: String, file: File?) {
-        val enc_iv = Base64.encodeToString(iv, Base64.DEFAULT)
-        val write_to_file = enc_iv.plus(encrypted_data)
+    private fun writeToFile(data: ByteArray, file: File?) {
+        val cipher = getEncCipher()
+        val encryptedData = cipher.doFinal(data)
 
         FileOutputStream(file).use {
-            it.write(write_to_file.toByteArray())
+            it.write(cipher.iv)
+            it.write(encryptedData)
         }
     }
 
-    private fun readFromFile(file: File?): Pair<ByteArray?, String?> {
-        var read_from_file: String? = null
-        try {
-             read_from_file = FileInputStream(file).bufferedReader().use {
-                it.readText() }
+    private fun readFromFile(file: File?): ByteArray {
+        var fileContents: ByteArray? = null
+        fileContents = FileInputStream(file).use {
+            it.readBytes()
         }
-        catch (ex: java.lang.Exception)
-        {
-            Log.d(km_tag, "File does not exist")
-        }
-        if (read_from_file != null) {
-            val split = read_from_file.split('\n', limit = 2)
-            val iv = Base64.decode(split.get(0).toByteArray(), Base64.DEFAULT)
-            Log.d(km_tag, split.get(1))
-            return Pair(iv, split.get(1))
-        }
-        return Pair(null, null)
+
+        var nonce = fileContents.copyOfRange(0, 12)
+        var data = fileContents.copyOfRange(12, fileContents.size)
+
+        val cipher = getDecCipher(nonce)
+        val decryptedData = cipher.doFinal(data)
+
+        return decryptedData
     }
 
-    fun storeData(data: String, file: File?) {
-        Log.d(km_tag, "storeData")
-        val (iv, encrypted_data) = encryptData(data)
-        writeToFile(iv, encrypted_data, file)
+    private fun readConfig() {
+        val fileContents = readFromFile(configFile).toString(Charsets.UTF_8)
+        config = customGson.fromJson(fileContents, KeyManagerStruct::class.java)
     }
 
-    fun loadData(file: File?): String? {
-        Log.d(km_tag, "loadData")
-        val (iv, encrypted_data) = readFromFile(file)
-
-        if (iv != null && encrypted_data != null) return decryptData(iv, encrypted_data)
-        return null
+    private fun writeConfig() {
+        val fileContents = customGson.toJson(config)
+        writeToFile(fileContents.toByteArray(), configFile)
     }
 
-    private fun generateED25519KeyPair() : AsymmetricCipherKeyPair {
+    private fun generateED25519KeyPair() : Pair<Ed25519PrivateKeyParameters, Ed25519PublicKeyParameters> {
         val keyPairGenerator = Ed25519KeyPairGenerator()
-        val nonce = SecureRandom()
+        val random = SecureRandom()
 
-        keyPairGenerator.init(KeyGenerationParameters(nonce, 0))
+        keyPairGenerator.init(KeyGenerationParameters(random, 0))
 
         Log.d("DeviceKeyPair", "Generated new ED25519 KeyPair")
-        return keyPairGenerator.generateKeyPair()
+        val keypair = keyPairGenerator.generateKeyPair()
+        return Pair(keypair.private as Ed25519PrivateKeyParameters, keypair.public as Ed25519PublicKeyParameters)
     }
 
-    private fun loadDeviceKeyPairFromFile() : AsymmetricCipherKeyPair? {
-        try {
-            val fileData = loadData(device_prkey_file) ?: return null
-            val privateKeyParameters = Gson().fromJson(fileData, Ed25519PrivateKeyParameters::class.java)
-            return AsymmetricCipherKeyPair(privateKeyParameters.generatePublicKey(), privateKeyParameters)
+    fun getDeviceKeyPair(): Pair<Ed25519PrivateKeyParameters, Ed25519PublicKeyParameters> {
+        val private = getDevicePrivateKey()
+        val public = private.generatePublicKey()
+
+        return Pair(private, public)
+    }
+
+    fun getDevicePrivateKey(): Ed25519PrivateKeyParameters {
+        readConfig()
+        if (config?.PrivateKey?.isEmpty() != false)
+        {
+            val (private, public) = generateED25519KeyPair()
+            config?.PrivateKey = private.encoded
+            writeConfig()
         }
-        catch (exception : Exception) {
-            Log.d("DeviceKeyPair", "Unable to load existing KeyPair from file due to: ${exception.message}")
+        return Ed25519PrivateKeyParameters(config?.PrivateKey, 0)
+    }
+
+    fun getPeerPublicKey(): Ed25519PublicKeyParameters? {
+        readConfig()
+        if (config?.PeerPublicKey?.isEmpty() != false)
+        {
+            return null
         }
-
-        return null
+        return Ed25519PublicKeyParameters(config?.PeerPublicKey, 0)
     }
 
-    private fun storeDeviceKeyPairToFile() {
-        if(device_kp == null) return
-
-        storeData(Gson().toJson(device_kp!!.private as Ed25519PrivateKeyParameters), device_prkey_file)
-        Log.d("DeviceKeyPair", "Stored KeyPair to encrypted File")
-    }
-
-    fun getDeviceKeyPair() : AsymmetricCipherKeyPair {
-        if(device_kp != null) return device_kp!!
-
-        device_kp = loadDeviceKeyPairFromFile()
-        if(device_kp != null) return device_kp!!
-
-        device_kp = generateED25519KeyPair()
-        storeDeviceKeyPairToFile()
-        return device_kp!!
+    fun savePeerPublicKey(pubkey: Ed25519PublicKeyParameters) {
+        readConfig()
+        config?.PeerPublicKey = pubkey.encoded;
+        writeConfig()
     }
 
     fun signBytes(messageBytes : ByteArray) : ByteArray {
         val signer = Ed25519Signer()
-        signer.init(true, getDeviceKeyPair().private as Ed25519PrivateKeyParameters)
+        signer.init(true, getDevicePrivateKey())
         signer.update(messageBytes, 0, messageBytes.size)
 
         return signer.generateSignature()
     }
 
-    private fun generateX25519KeyPair(): AsymmetricCipherKeyPair {
+    private fun generateX25519KeyPair(): Pair<X25519PrivateKeyParameters, X25519PublicKeyParameters> {
         val key_pair_generator = X25519KeyPairGenerator()
         val secure_random = SecureRandom()
         val params = KeyGenerationParameters(secure_random, 0)
@@ -194,10 +217,13 @@ class KeyManager(appContext: Context) {
 
         val key_pair: AsymmetricCipherKeyPair = key_pair_generator.generateKeyPair()
 
-        return key_pair
+        val private = key_pair.private as X25519PrivateKeyParameters
+        val public = key_pair.public as X25519PublicKeyParameters
+
+        return Pair(private, public)
     }
 
-    private fun getSharedSecret(public_key: AsymmetricKeyParameter, private_key: AsymmetricKeyParameter): ByteArray {
+    private fun getSharedSecret(public_key: X25519PublicKeyParameters, private_key: X25519PrivateKeyParameters): ByteArray {
         val key_agreement = X25519Agreement()
         key_agreement.init(private_key)
         key_agreement.agreementSize
@@ -221,33 +247,27 @@ class KeyManager(appContext: Context) {
         return hash.digest()
     }
 
-    fun keyAgreement(recipientPublicKey: ByteArray): Triple<ByteArray, ByteArray, SenderToken>? {
+    fun keyAgreement(recipientPublicKey: Ed25519PublicKeyParameters): Triple<ByteArray, ByteArray, SenderToken>? {
         // get token id + public key
         val token = getSenderToken(recipientPublicKey) ?: return null
 
         val hash = hashTuple(("sender token").toByteArray(), token.Id, token.PublicPoint)
 
         val verifier = Ed25519Signer()
-        verifier.init(false, Ed25519PublicKeyParameters(ByteArrayInputStream(recipientPublicKey)))
+        verifier.init(false, recipientPublicKey)
         verifier.update(hash, 0, hash.size)
 
-        val valid_signature = verifier.verifySignature(token.Signature)
-
-        if (!valid_signature)
+        if (!verifier.verifySignature(token.Signature))
             return null
 
         val server_public_key = X25519PublicKeyParameters(ByteArrayInputStream(token.PublicPoint))
 
-        val key_pair: AsymmetricCipherKeyPair = generateX25519KeyPair()
-        // send client_public_key to server
-        val client_public_key: AsymmetricKeyParameter = key_pair.getPublic()
-        val client_private_key: AsymmetricKeyParameter = key_pair.getPrivate()
+        val (private, public) = generateX25519KeyPair()
+
         // encrypt message with shared key
-        val shared_key = getSharedSecret(server_public_key, client_private_key)
+        val shared_key = getSharedSecret(server_public_key, private)
 
-        val myPublicPoint = (client_public_key as X25519PublicKeyParameters).encoded
-
-        return Triple(shared_key, myPublicPoint, token)
+        return Triple(shared_key, public.encoded, token)
     }
 
     fun encryptBytes(data: ByteArray, shared_key: ByteArray): Pair<ByteArray, ByteArray> {
@@ -264,26 +284,18 @@ class KeyManager(appContext: Context) {
         Log.d(km_tag, scan_result)
 
         val json: JsonObject = Gson().fromJson(scan_result, JsonObject::class.java)
-        val pubkey = Base64.decode(json.get("pubkey").asString, Base64.DEFAULT)
+        val peerPubkey = Base64.decode(json.get("pubkey").asString, Base64.DEFAULT)
+        val peerPubkeyEd25519 = Ed25519PublicKeyParameters(ByteArrayInputStream(peerPubkey))
 
-        this.storeData(Base64.encodeToString(pubkey, Base64.DEFAULT), pubkey_file)
+        savePeerPublicKey(peerPubkeyEd25519)
 
         val onetimekey = Base64.decode(json.get("onetimekey").asString, Base64.DEFAULT)
 
-        val msg_type = byteArrayOf(0x1)
-        val mypubkey = getDeviceKeyPair().public as Ed25519PublicKeyParameters
+        var msg_type = byteArrayOf(0x1)
+        var (_, mypubkey) = getDeviceKeyPair()
 
         val (nonce, ciphertext) = encryptBytes(mypubkey.encoded, onetimekey);
 
-        sendEncryptedMessage(msg_type + nonce + ciphertext, pubkey);
+        sendEncryptedMessage(msg_type + nonce + ciphertext, peerPubkeyEd25519);
     }
-
-    fun getRecipientPublicKey() : ByteArray? {
-        val data = loadData(pubkey_file)
-        if (data != null)
-            return Base64.decode(data.toByteArray(), Base64.DEFAULT)
-        else
-            return null
-    }
-
 }

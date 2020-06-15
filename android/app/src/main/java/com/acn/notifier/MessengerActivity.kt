@@ -54,7 +54,7 @@ class MessengerActivity : AppCompatActivity() {
             return
         }
 
-        val recipientPublicKey = km!!.getRecipientPublicKey()
+        val recipientPublicKey = km!!.getPeerPublicKey()
         if(recipientPublicKey == null) {
             showToastMessage(applicationContext, "We forgot the recipient 0.o")
             return
@@ -79,7 +79,7 @@ class MessengerActivity : AppCompatActivity() {
             message.toByteArray()
         )
 
-        val publickey = km!!.getDeviceKeyPair().public as Ed25519PublicKeyParameters
+        val (_, publickey) = km!!.getDeviceKeyPair()
         val signature = km!!.signBytes(hash)
 
         val plaintext: ByteArray = signature + publickey.encoded + message.toByteArray()

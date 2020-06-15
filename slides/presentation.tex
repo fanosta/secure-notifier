@@ -88,6 +88,34 @@
     \end{figure}
   \end{frame}
 
+  \begin{frame}{Curve25519}
+    Popularity increased considerably after 2013 when it was discovered that the NSA had potentially implemented a backdoor into Dual\_EC\_DRBG
+    \begin{itemize}
+      \item Curve25519 implemented in Go standard library
+      \item Server and Client written in Go
+      \item Android application uses Bouncy Castle library
+    \end{itemize}
+  \end{frame}
+  
+  \begin{frame}{Asymmetric cryptography}
+    Curve25519 is designed for use with the elliptic curve Diffie–Hellman (ECDH)
+    \begin{itemize}
+      \item Digital Signature Algorithm Ed25519
+      \item Key Exchange Algorithm X25519
+      \item Shared \textsc{Aes\_128\_Gcm} key for message encryption
+    \end{itemize}
+  \end{frame}
+
+  \begin{frame}{Android Keystore}
+    Store cryptographic keys in a container to make it more difficult to extract from the device
+    \begin{itemize}
+      \item Key material remaining non-exportable
+      \item Android Keystore System does not support Curve25519
+      \item Asymmetric keys stored in encrypted file
+      \item Android Keystore \textsc{Aes\_128\_Gcm} to encrypt file
+    \end{itemize}
+  \end{frame}
+
   \maketitle
 %  \nocite{*}
 %  \begin{frame}{References}

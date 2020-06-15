@@ -1,5 +1,8 @@
 package com.acn.notifier
 
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.util.Base64
 import android.util.Log
 import com.google.gson.Gson
@@ -8,14 +11,29 @@ import org.bouncycastle.crypto.params.Ed25519PublicKeyParameters
 import java.io.BufferedReader
 import java.io.DataOutputStream
 import java.io.InputStreamReader
+import java.lang.Exception
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.stream.Collectors
 
-const val NETWORK_ENDPOINT_SEND = "https://acn.nageler.org/send";
-const val NETWORK_ENDPOINT_GETTOKEN = "https://acn.nageler.org/get_token";
+const val NETWORK_ENDPOINT_SEND = "https://acn.nageler.org/send"
+const val NETWORK_ENDPOINT_GETTOKEN = "https://acn.nageler.org/get_token"
 
 data class SenderToken(val Id: ByteArray, val PublicPoint: ByteArray, val Signature: ByteArray)
+
+
+fun checkNetworkConnection(applicationContext:Context):Boolean{
+    val connectivityManager = applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    val capabilities = connectivityManager.getNetworkCapabilities(connectivityManager.activeNetwork)
+        ?: return false
+
+    if(capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) return true
+    if(capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) return true
+    if(capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)) return true
+    if(capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) return true
+
+    return false
+}
 
 fun getSenderToken(recipient: Ed25519PublicKeyParameters): SenderToken? {
 

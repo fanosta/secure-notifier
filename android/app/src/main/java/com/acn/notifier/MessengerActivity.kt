@@ -49,6 +49,11 @@ class MessengerActivity : AppCompatActivity() {
         if(message.length <= 0) return;
         messageView.text = "";
 
+        if(!checkNetworkConnection(applicationContext)) {
+            showToastMessage(applicationContext, "U are not connected to the Internet :O")
+            return
+        }
+
         if(km == null) {
             showToastMessage(applicationContext, "Some internal KM problems :/")
             return
@@ -62,7 +67,7 @@ class MessengerActivity : AppCompatActivity() {
 
         val tripleResult = km!!.keyAgreement(recipientPublicKey)
         if(tripleResult == null) {
-            showToastMessage(applicationContext, "we r unable to reach an agreement :|")
+            showToastMessage(applicationContext, "We r unable to reach an agreement :|")
             return
         }
 

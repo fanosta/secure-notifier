@@ -18,6 +18,8 @@
 
 \newcommand\presdate{June 18, 2020}
 
+\setbeamercovered{transparent}
+
 \usetheme[]{metropolis}
 \metroset{block=fill}
 
@@ -35,7 +37,7 @@
 \begin{document}
   \maketitle
 
-  \begin{frame}{Content}
+  \begin{frame}{Outline}
     \tableofcontents
   \end{frame}
 
@@ -47,33 +49,47 @@
   %  \end{figure}
   %\end{frame}
 
-\section{Assignment}
-
-  \begin{frame}{Assignment description}
-    \begin{block}{Android: Notifier (Server)}
-      Receiving notifications from mobile phones on a computer is nothing new (e.g. Messages, Pushbullet, Mightytext, or Desktop Notifications).
-      However, all of these services relay your messages using a 3rd party in clear text. Your task is to establish an indirect connection (= using a web server) to a target while ensuring that all transfered data is encrypted. The challenges are similar to the P2P variant. 
-      With a server-based version, however, this would also work if the mobile phone and recipient device are located in distinct networks. 
-      Somehow you also have to authenticate at the server, i.e. the server has to know the target devices it should deliver notifications for. 
-      A very good starting point is in looking at / thinking about how existing messengers, such as Telegram or Signal approach these issues. 
-    \end{block}
+\section{Introduction}
+  \begin{frame}{Motivation}
+    \begin{itemize}
+      \item Sending notifications from a phone to a PC
+      \pause
+      \item We do not trust the server
+    \end{itemize}
   \end{frame}
 
-\section{Some Basic Definitions}
-
-  \begin{frame}{Some Basic Definitions}
-    The central security properties
+  \begin{frame}{Security Goals}
     \begin{itemize}
-      \item \textbf{Confidentialty} \onslide<1>{$\rightarrow$ Information is not made available to unauthorized entities}
+      \item \textbf{Confidentialty}
+        \setbeamercovered{invisible}
+        \onslide<1>{$\rightarrow$ Third parties cannot read any messages}
+        \setbeamercovered{transparent}
       \pause
-      \item \textbf{Integrity} \onslide<2>{$\rightarrow$ Changes can only be done in a specific and authorized manner}
+      \item \textbf{Integrity}
+        \setbeamercovered{invisible}
+        \onslide<2>{$\rightarrow$ Third parties cannot alter or forge messages}
+        \setbeamercovered{transparent}
       \pause
-      \item \textbf{Availability} \onslide<3>{$\rightarrow$ Timely and reliable access to the information}
+      % \item \textbf{Availability}
+      %   \setbeamercovered{invisible}
+      %   \onslide<3>{$\rightarrow$ Timely and reliable access to the information}
+      %   \setbeamercovered{transparent}
+      % \pause
+      \item \textbf{Authencity}
+        \setbeamercovered{invisible}
+        \onslide<3>{$\rightarrow$ The sender is who they claim to be}
+        \setbeamercovered{transparent}
       \pause
-      \item \textbf{Authencity} \onslide<4>{$\rightarrow$ Assure that information is from the source it claims to be from}
+      \item \textbf{Forward Secrecy}
+        \setbeamercovered{invisible}
+        \onslide<4>{$\rightarrow$ Leak of a private key does not affect past communication}
+        \setbeamercovered{transparent}
       \pause
+      \item \textbf{Identity Hiding}
+        \setbeamercovered{invisible}
+        \onslide<5>{$\rightarrow$ Third parties do not see the public key of the sender}
+        \setbeamercovered{transparent}
     \end{itemize}
-    Security properties define what makes assets valuable.
   \end{frame}
 
 \section{Notifications}

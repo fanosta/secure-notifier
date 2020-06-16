@@ -15,7 +15,8 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
-        <activity android:name=".MessengerActivity"></activity>
+        <activity android:name=".SlidesActivity"></activity>
+        <activity android:name=".MessengerActivity" />
         <activity android:name=".NetworkTestActivity" />
 
         <meta-data

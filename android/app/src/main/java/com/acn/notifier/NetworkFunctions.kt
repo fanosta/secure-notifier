@@ -9,6 +9,7 @@ import com.google.gson.Gson
 import com.google.gson.JsonObject
 import okhttp3.*
 import org.bouncycastle.crypto.params.Ed25519PublicKeyParameters
+import java.time.LocalDateTime
 import java.util.concurrent.TimeUnit
 import javax.net.ssl.SSLPeerUnverifiedException
 
@@ -135,4 +136,61 @@ fun sendEncryptedMessage(message: ByteArray, recipient: Ed25519PublicKeyParamete
     val response = postRequest(NETWORK_ENDPOINT_SEND, json.toString().toByteArray())
 
     return response != null && response.isSuccessful
+}
+
+fun sendMessage(applicationContext : Context, km : KeyManager?, message : String) : Boolean {
+    if(!checkNetworkConnection(applicationContext)) {
+        showToastMessage(applicationContext, "U are not connected to the Internet :O")
+        return false
+    }
+
+    val(available, valid) = endpointsAreAvailableAndValid()
+
+    if(!valid) {
+        showToastMessage(applicationContext, "Oha - it seems someone is intruding us ;/")
+        return false
+    }
+
+    if(!available) {
+        showToastMessage(applicationContext, "We r unable to reach the Server :(")
+        return false
+    }
+
+    if(km == null) {
+        showToastMessage(applicationContext, "Some internal KM problems :/")
+        return false
+    }
+
+    val recipientPublicKey = km!!.getPeerPublicKey()
+    if(recipientPublicKey == null) {
+        showToastMessage(applicationContext, "We forgot the recipient 0.o")
+        return false
+    }
+
+    val tripleResult = km!!.keyAgreement(recipientPublicKey)
+    if(tripleResult == null) {
+        showToastMessage(applicationContext, "We r unable to reach an agreement :|")
+        return false
+    }
+
+    val (key, sender_keyshare, token) = tripleResult
+    println(Base64.encodeToString(key, Base64.DEFAULT))
+    println(token)
+
+    val msg_type = byteArrayOf(0x2)
+    val token_id = token.Id
+
+    val hash = km!!.hashTuple(
+        ("message signature").toByteArray(),
+        token_id,
+        message.toByteArray()
+    )
+
+    val (_, publickey) = km!!.getDeviceKeyPair()
+    val signature = km!!.signBytes(hash)
+
+    val plaintext: ByteArray = signature + publickey.encoded + message.toByteArray()
+    val (nonce, ciphertext) = km!!.encryptBytes(plaintext, key)
+
+    return sendEncryptedMessage(msg_type + token_id + sender_keyshare + nonce + ciphertext, recipientPublicKey)
 }

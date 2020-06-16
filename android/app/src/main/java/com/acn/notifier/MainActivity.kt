@@ -14,6 +14,7 @@ import com.google.android.gms.vision.barcode.Barcode
 class MainActivity : Activity() {
   var statusText: TextView? = null
   var buttonMessenger: Button? = null
+  var buttonSlides: Button? = null
   var km: KeyManager? = null
 
   override fun onCreate(savedInstanceState: Bundle?) {
@@ -23,6 +24,7 @@ class MainActivity : Activity() {
     setContentView(R.layout.activity_main)
     statusText = findViewById(R.id.statusText)
     buttonMessenger = findViewById(R.id.buttonMessenger)
+    buttonSlides = findViewById(R.id.buttonSlides)
     km = KeyManager(this.applicationContext)
 
     setStatusText()
@@ -31,6 +33,7 @@ class MainActivity : Activity() {
   private fun setStatusText() {
     var status = "Use 'Scan QR-Code' to connect to a Client"
     buttonMessenger!!.visibility = View.GONE
+    buttonSlides!!.visibility = View.GONE
 
     if(km != null && km!!.getPeerPublicKey() != null) {
       status = "You are connected with:\n\n"
@@ -38,6 +41,7 @@ class MainActivity : Activity() {
       status += "\n\nUse 'Messenger' to send messages"
       status += "\n\nOr use 'Scan QR-Code' to connect to a new Client"
       buttonMessenger!!.visibility = View.VISIBLE
+      buttonSlides!!.visibility = View.VISIBLE
     }
 
     if(statusText == null) {
@@ -56,6 +60,10 @@ class MainActivity : Activity() {
 
   fun openMessengerActivity(view: View?) {
     startActivity(Intent(this, MessengerActivity::class.java))
+  }
+
+  fun openSlidesActivity(view: View?) {
+    startActivity(Intent(this, SlidesActivity::class.java))
   }
 
   override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {

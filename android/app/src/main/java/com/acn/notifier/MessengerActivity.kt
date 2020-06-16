@@ -10,6 +10,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import java.time.LocalDateTime
+import javax.net.ssl.SSLPeerUnverifiedException
 
 
 class MessengerActivity : AppCompatActivity() {
@@ -42,7 +43,7 @@ class MessengerActivity : AppCompatActivity() {
 
     }
 
-    fun sendMessage(view : View?) {
+    fun sendTextMessage(view : View?) {
 
         val messageView = findViewById<TextView>(R.id.textNewMessage)
         val message = messageView.text.toString();
@@ -50,66 +51,18 @@ class MessengerActivity : AppCompatActivity() {
         if(message.isEmpty()) return;
         messageView.text = "";
 
-        if(!checkNetworkConnection(applicationContext)) {
-            showToastMessage(applicationContext, "U are not connected to the Internet :O")
-            return
+        try {
+            val result = sendMessage(applicationContext, km!!, message)
+            if(result) {
+                addGUIMessageElement("System", message, "Transferred to Server: ${LocalDateTime.now()}")
+            }
+            else {
+                showToastMessage(this.applicationContext, "Sending message failed - try again")
+            }
+        }
+        catch (toastException: ToastException) {
+            showToastMessage(this.applicationContext, toastException.toastMessage)
         }
 
-        val(available, valid) = endpointsAreAvailableAndValid()
-
-        if(!valid) {
-            showToastMessage(applicationContext, "Oha - it seems someone is intruding us ;/")
-            return
-        }
-
-        if(!available) {
-            showToastMessage(applicationContext, "We r unable to reach the Server :(")
-            return
-        }
-
-        if(km == null) {
-            showToastMessage(applicationContext, "Some internal KM problems :/")
-            return
-        }
-
-        val recipientPublicKey = km!!.getPeerPublicKey()
-        if(recipientPublicKey == null) {
-            showToastMessage(applicationContext, "We forgot the recipient 0.o")
-            return
-        }
-
-        val tripleResult = km!!.keyAgreement(recipientPublicKey)
-        if(tripleResult == null) {
-            showToastMessage(applicationContext, "We r unable to reach an agreement :|")
-            return
-        }
-
-        val (key, sender_keyshare, token) = tripleResult
-        println(Base64.encodeToString(key, Base64.DEFAULT))
-        println(token)
-
-        val msg_type = byteArrayOf(0x2)
-        val token_id = token.Id
-
-        val hash = km!!.hashTuple(
-            ("message signature").toByteArray(),
-            token_id,
-            message.toByteArray()
-        )
-
-        val (_, publickey) = km!!.getDeviceKeyPair()
-        val signature = km!!.signBytes(hash)
-
-        val plaintext: ByteArray = signature + publickey.encoded + message.toByteArray()
-        val (nonce, ciphertext) = km!!.encryptBytes(plaintext, key)
-
-        val result = sendEncryptedMessage(msg_type + token_id + sender_keyshare + nonce + ciphertext, recipientPublicKey)
-
-        if(result) {
-            addGUIMessageElement("System", message, "Transferred to Server: ${LocalDateTime.now()}")
-        }
-        else {
-            showToastMessage(this.applicationContext, "Hää 0.o - Message sending failed - try again")
-        }
     }
 }

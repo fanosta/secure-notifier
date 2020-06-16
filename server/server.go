@@ -124,17 +124,22 @@ func submitMessage(recipient [32]byte, msg []byte) {
 	channelsMut.RLock()
 	channel, ok := channels[recipient]
 	if ok {
+		fmt.Printf("sending message to %s\n", base64.StdEncoding.EncodeToString(recipient[:]))
 		channel <- msg
 		channelsMut.RUnlock()
 		return
 	}
 	channelsMut.RUnlock()
 
+	fmt.Printf("channel for %s not found, queueing message\n", base64.StdEncoding.EncodeToString(recipient[:]))
 	queueMessage(recipient, msg)
 }
 
-func readPump(conn *websocket.Conn, pubkey ed25519.PublicKey) {
+func readPump(conn *websocket.Conn, pubkey ed25519.PublicKey, disconnectChan chan struct{}) {
 	defer conn.Close()
+	defer func() {
+		disconnectChan <- struct{}{}
+	}()
 
 	pubkeyarr := pubkeyAsBytes(pubkey)
 
@@ -151,7 +156,7 @@ func readPump(conn *websocket.Conn, pubkey ed25519.PublicKey) {
 		tokensMut.Unlock()
 	}
 }
-func writePump(conn *websocket.Conn, pubkey ed25519.PublicKey) {
+func writePump(conn *websocket.Conn, pubkey ed25519.PublicKey, disconnectChan chan struct{}) {
 	ticker := time.NewTicker(30 * time.Second)
 	var err error
 	defer ticker.Stop()
@@ -164,6 +169,7 @@ func writePump(conn *websocket.Conn, pubkey ed25519.PublicKey) {
 	channelsMut.Unlock()
 
 	defer func() {
+		fmt.Printf("removing channel for %s\n", base64.StdEncoding.EncodeToString(pubkeyArr[:]))
 		channelsMut.Lock()
 		close(channel)
 		delete(channels, pubkeyArr)
@@ -176,6 +182,8 @@ func writePump(conn *websocket.Conn, pubkey ed25519.PublicKey) {
 
 	messagesMut.Lock()
 	var newQueue [][]byte = nil
+
+
 	for _, msg := range queuedMessages[pubkeyArr] {
 		err = conn.WriteJSON(SmallMessage{Message: msg})
 		if err != nil {
@@ -197,6 +205,8 @@ func writePump(conn *websocket.Conn, pubkey ed25519.PublicKey) {
 				queueMessage(pubkeyArr, msg)
 				return
 			}
+		case <-disconnectChan:
+			return
 		case <-ticker.C:
 			if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				return
@@ -218,8 +228,10 @@ func wshandler(w http.ResponseWriter, r *http.Request) {
 	}
 	fmt.Printf("successfully verified %s\n", base64.StdEncoding.EncodeToString(pubkey))
 
-	go writePump(conn, pubkey)
-	go readPump(conn, pubkey)
+	disconnectChan := make(chan struct{})
+
+	go writePump(conn, pubkey, disconnectChan)
+	go readPump(conn, pubkey, disconnectChan)
 }
 
 func sendMessage(c *gin.Context) {

@@ -19,6 +19,7 @@ import (
 	"os/exec"
 	"path"
 	"strings"
+	"html"
 
 	"github.com/gorilla/websocket"
 	"golang.org/x/crypto/curve25519"
@@ -382,7 +383,7 @@ func main() {
 				fmt.Printf("%s: %s\n", decrypted_msg.SenderName, decrypted_msg.Message)
 				cmd := exec.Command("notify-send",
 									decrypted_msg.SenderName,
-									decrypted_msg.Message)
+									html.EscapeString(decrypted_msg.Message))
 				cmd.Run()
 			}
 		}

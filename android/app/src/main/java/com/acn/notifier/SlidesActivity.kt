@@ -18,12 +18,13 @@ class SlidesActivity : AppCompatActivity() {
     }
 
     private fun requestSlide(slide : String, command : String) {
-        var toastString = "Failed requesting $slide slide :/";
-        if(sendMessage(applicationContext, km, command)) {
-            toastString = "$slide slide - Check :D"
+        try {
+            if (!sendMessage(applicationContext, km!!, command)) {
+                showToastMessage(applicationContext, "Failed requesting $slide slide :/")
+            }
+        } catch (e: ToastException) {
+            showToastMessage(applicationContext, e.toastMessage)
         }
-
-        showToastMessage(applicationContext, toastString)
     }
 
     fun requestPreviousSlide(view : View?) {

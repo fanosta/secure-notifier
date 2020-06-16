@@ -10,6 +10,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import java.time.LocalDateTime
+import javax.net.ssl.SSLPeerUnverifiedException
 
 
 class MessengerActivity : AppCompatActivity() {
@@ -50,13 +51,18 @@ class MessengerActivity : AppCompatActivity() {
         if(message.isEmpty()) return;
         messageView.text = "";
 
-        val result = sendMessage(applicationContext, km, message)
+        try {
+            val result = sendMessage(applicationContext, km!!, message)
+            if(result) {
+                addGUIMessageElement("System", message, "Transferred to Server: ${LocalDateTime.now()}")
+            }
+            else {
+                showToastMessage(this.applicationContext, "Sending message failed - try again")
+            }
+        }
+        catch (toastException: ToastException) {
+            showToastMessage(this.applicationContext, toastException.toastMessage)
+        }
 
-        if(result) {
-            addGUIMessageElement("System", message, "Transferred to Server: ${LocalDateTime.now()}")
-        }
-        else {
-            showToastMessage(this.applicationContext, "Hää 0.o - Message sending failed - try again")
-        }
     }
 }

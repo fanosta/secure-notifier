@@ -19,6 +19,7 @@ import (
 	"os/exec"
 	"path"
 	"strings"
+	"html"
 
 	"github.com/gorilla/websocket"
 	"golang.org/x/crypto/curve25519"
@@ -387,10 +388,11 @@ func main() {
 				} else if decrypted_msg.Message == "prev" {
 					cmd := exec.Command("xdotool", "key", "Page_Up")
 					cmd.Run()
-				} else {
+				}
+				{
 					cmd := exec.Command("notify-send",
 										decrypted_msg.SenderName,
-										decrypted_msg.Message)
+										html.EscapeString(decrypted_msg.Message))
 					cmd.Run()
 				}
 			}

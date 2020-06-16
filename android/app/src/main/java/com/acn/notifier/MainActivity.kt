@@ -39,6 +39,7 @@ class MainActivity : Activity() {
       status = "You are connected with:\n\n"
       status += Base64.encodeToString(km!!.getPeerPublicKey()?.encoded, Base64.DEFAULT)
       status += "\n\nUse 'Messenger' to send messages"
+      status += "\n\nUse 'Slides' to request a previous or next slide during a presentation"
       status += "\n\nOr use 'Scan QR-Code' to connect to a new Client"
       buttonMessenger!!.visibility = View.VISIBLE
       buttonSlides!!.visibility = View.VISIBLE
